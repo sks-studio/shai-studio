@@ -1,8 +1,8 @@
 # Shai Studios — MVP
 
-Public marketing site + agency workspace + client portal for Shai Studios, an independent
-digital marketing agency. Zero dependencies: plain HTML, CSS and JavaScript, hash routing,
-state persisted in `localStorage`.
+Public marketing site + role-based agency workspace + client portal for Shai Studios,
+an independent digital marketing agency. Zero dependencies: plain HTML, CSS and
+JavaScript with hash routing and `localStorage` persistence.
 
 ## Run locally
 
@@ -10,22 +10,45 @@ state persisted in `localStorage`.
 npx serve .
 ```
 
-Or just open `index.html`.
+## Public site
 
-## What's in it
+Home (hero, client strip, services, selected work, process, stats, testimonials, CTA),
+Services (+ process), Work (filterable case studies), About (+ team), Pricing (+ FAQ),
+Contact. Photography is stock imagery from Unsplash; every image URL is editable in the
+admin, so swapping in real brand photography is a field edit, not a code change.
 
-**Public site** — Home, Services, Work (filterable), About, Pricing, Contact.
-The contact form writes a real enquiry that shows up in the workspace.
+## Roles
 
-**Agency workspace** (`#/login` → Overview) — KPIs off live invoice data, enquiry inbox with
-one-click convert-to-client, clients + client detail (projects, invoices, balance, notes),
-projects with inline status, invoices with filters, an invoice builder (line items, 15% VAT,
-draft/send), a printable invoice document, and settings.
+| Role | Can do |
+|---|---|
+| Super Admin | Everything, including users, audit log and data reset |
+| Admin | Everything except deleting users or clearing the audit log |
+| Manager | Clients, projects, enquiries in full; invoices create/edit; content edit |
+| Staff | Read-only, plus create/edit clients and projects |
+| Client | Client portal only |
 
-**Client portal** — outstanding invoice with pay action, project progress, invoice history.
+The permission matrix is rendered live on **Users & roles**. A user can only edit or
+delete accounts ranked below their own.
+
+## CRUD coverage
+
+Every record has create, read, update and delete through the same permission-checked
+form engine: clients, projects, invoices (line items, 15% VAT, draft/send/paid),
+enquiries, users, services, case studies, pricing plans, page copy and agency settings.
+Every write is stamped into the **audit log** with who, what, when and which fields changed.
+Breadcrumbs appear on every workspace screen.
 
 ## Demo sign-in
 
-Any email with a password of 6+ characters, or use the two demo buttons on the sign-in screen
-(agency owner / client portal). Auth is front-end only — this is a product MVP, not a
-production system. Reset the data from Settings → Reset demo data.
+Password `demo1234` for all accounts, or use the role buttons on the sign-in screen.
+
+| Email | Role |
+|---|---|
+| admin@shaistudios.co.za | Super Admin |
+| tayla@shaistudios.co.za | Admin |
+| naledi@shaistudios.co.za | Manager |
+| sipho@shaistudios.co.za | Staff |
+| sarah@lumi.co.za | Client |
+
+Auth is front-end only — this is a product MVP, not a production system. Super Admin →
+Settings → Reset all data restores the seed.
