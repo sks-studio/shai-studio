@@ -12,10 +12,27 @@ npx serve .
 
 ## Public site
 
-Home (hero, client strip, services, selected work, process, stats, testimonials, CTA),
-Services (+ process), Work (filterable case studies), About (+ team), Pricing (+ FAQ),
-Contact. Photography is stock imagery from Unsplash; every image URL is editable in the
-admin, so swapping in real brand photography is a field edit, not a code change.
+Five pages: **Home**, **About**, **Services**, **Blog**, **Contact**. Pricing and case
+studies live inside Services and Home; the old /work and /pricing URLs still resolve.
+The blog has an index, a featured lead post and article pages at , all
+managed from the admin. Photography is Unsplash stock; every image URL is an editable
+field, so swapping in brand photography is a content change, not a code change.
+
+## Client onboarding wizard
+
+ is a six-step wizard: about you → your business → goals → budget and
+timeline → portal account → review. Progress is saved to the device between steps, each
+step validates before advancing, and submitting creates the client record, their portal
+user, a discovery project, a qualified enquiry and a stored answer sheet — then signs the
+new client straight into their portal with a next-steps checklist. The answers appear on
+the client record in the admin.
+
+## Responsive
+
+Built mobile-first and verified at 375px, 768px and desktop: no horizontal page scroll on
+any route, a slide-in drawer with scrim for both the public menu and the workspace sidebar,
+tables that scroll inside their card, modals that become bottom sheets, and full-width
+actions on small screens.
 
 ## Roles
 

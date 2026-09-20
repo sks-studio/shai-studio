@@ -124,7 +124,7 @@
       u('Sarah Ndlovu', 'sarah@lumi.co.za', 'client', { clientId: byName('LUMI Collective') })
     ];
     return {
-      clients, projects, invoices, users, enquiries: [], audit: [],
+      clients, projects, invoices, users, enquiries: [], audit: [], onboardings: [],
       content: {
         services: [
           { id: uid('s'), icon: '◍', name: 'Brand', blurb: 'Positioning, visual identity and brand strategy.', items: ['Brand strategy', 'Visual identity', 'Brand messaging'], from: 8500, order: 1, image: PHOTOS.brand },
@@ -144,6 +144,24 @@
           { id: uid('pl'), name: 'Launch', price: 6500, blurb: 'Get started with the essentials.', items: ['Social media management', '10 posts per month', 'Basic reporting', 'Email support'], featured: false, order: 1 },
           { id: uid('pl'), name: 'Grow', price: 12000, blurb: 'Accelerate your momentum.', items: ['Everything in Launch', 'Content creation (photo & video)', 'Paid ads management', 'Monthly strategy call', 'Priority support'], featured: true, order: 2 },
           { id: uid('pl'), name: 'Partner', price: 20000, blurb: 'A tailored solution for scale.', items: ['Custom strategy & roadmap', 'Full-service support', 'Dedicated account manager', 'Advanced reporting', 'Website & digital projects'], featured: false, order: 3 }
+        ],
+        posts: [
+          { id: uid('b'), title: 'Five signs your brand has outgrown its logo', slug: 'outgrown-your-logo', category: 'Brand',
+            excerpt: 'A logo is not a brand. Here is how to tell when the identity you started with is quietly costing you customers.',
+            body: 'Most founders design a logo in week one and never revisit it. That is fine until the business changes shape around it.\n\nThe first sign is inconsistency: every team member has a different file, and none of them match. The second is the apology — you find yourself explaining the logo before explaining the work.\n\nA rebrand does not have to mean starting over. In most cases we keep the equity you have built and rebuild the system around it: type, colour, layout and tone. The logo is the smallest part of that system.',
+            author: 'Tayla Smith', date: daysFromNow(-6), image: PHOTOS.brand, published: true },
+          { id: uid('b'), title: 'What we actually measure in a social media report', slug: 'what-we-measure', category: 'Growth',
+            excerpt: 'Reach is the easiest number to grow and the least useful. These are the four metrics we put in front of clients instead.',
+            body: 'Every agency sends a monthly report. Very few of them answer the only question that matters: did this make money?\n\nWe track four things. Qualified reach — people who look like your buyer. Saves and shares, because they predict intent far better than likes. Click-through to a page that can convert. And cost per qualified lead, tracked all the way to the invoice.\n\nEverything else is context, not a result.',
+            author: 'Naledi Khumalo', date: daysFromNow(-19), image: PHOTOS.growth, published: true },
+          { id: uid('b'), title: 'A website is a salesperson, not a brochure', slug: 'website-is-a-salesperson', category: 'Digital',
+            excerpt: 'Most small business sites describe the company. The ones that work answer the visitor question by question.',
+            body: 'Open your homepage and read the first screen as a stranger. Does it say what you do, who it is for, and what to do next?\n\nWe build pages in the order a buyer thinks: the promise, the proof, the offer, the objection, the ask. Design serves that order rather than decorating around it.\n\nThe result is usually a shorter site that converts considerably better.',
+            author: 'Sipho Dlamini', date: daysFromNow(-33), image: PHOTOS.digital, published: true },
+          { id: uid('b'), title: 'How to brief a content shoot in one page', slug: 'brief-a-content-shoot', category: 'Content',
+            excerpt: 'Good content starts before the camera. Our one-page brief template, and the three questions it forces you to answer.',
+            body: 'A shoot without a brief produces beautiful images nobody can use. The brief is where the strategy becomes a shot list.\n\nAnswer three questions. Where will each asset be published, and in what aspect ratio? What must the viewer believe after seeing it? What do we already have that we should not reshoot?\n\nEverything else — location, styling, talent — follows from those answers.',
+            author: 'Naledi Khumalo', date: daysFromNow(-48), image: PHOTOS.content, published: true }
         ],
         site: {
           heroEyebrow: 'Strategy meets creativity',
@@ -171,6 +189,8 @@
   let db;
   try { db = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch (e) { db = seed(); }
   if (!db || !db.clients || !db.users || !db.content) db = seed();
+  if (!db.content.posts) db.content.posts = seed().content.posts;   // v3: blog
+  if (!db.onboardings) db.onboardings = [];                          // v3: onboarding wizard
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} };
   const log = (text) => { db.activity.unshift({ text, at: Date.now() }); db.activity = db.activity.slice(0, 60); };
   function audit(action, entity, label, detail) {
@@ -197,7 +217,7 @@
         { k: 'email', l: 'Email address', t: 'email' },
         { k: 'phone', l: 'Phone' },
         { k: 'service', l: 'Primary service', t: 'select', opts: () => db.content.services.map((s) => s.name) },
-        { k: 'status', l: 'Status', t: 'select', opts: ['Active', 'On Hold', 'Archived'] },
+        { k: 'status', l: 'Status', t: 'select', opts: ['Active', 'Onboarding', 'On Hold', 'Archived'] },
         { k: 'notes', l: 'Internal notes', t: 'textarea', full: true }
       ]
     },
@@ -258,6 +278,20 @@
         { k: 'order', l: 'Display order', t: 'number', def: () => 9 }
       ]
     },
+    post: {
+      title: 'Blog post', resource: 'content', list: () => db.content.posts, labelOf: (r) => r.title,
+      fields: [
+        { k: 'title', l: 'Title', req: true, full: true },
+        { k: 'slug', l: 'URL slug', def: () => '' },
+        { k: 'category', l: 'Category', t: 'select', opts: ['Brand', 'Content', 'Growth', 'Digital'] },
+        { k: 'author', l: 'Author', t: 'select', opts: () => db.users.filter((u) => u.role !== 'client').map((u) => u.name) },
+        { k: 'date', l: 'Publish date', t: 'date', def: () => today() },
+        { k: 'image', l: 'Cover photo URL', full: true, def: () => PHOTOS.content },
+        { k: 'excerpt', l: 'Excerpt (shown on the blog index)', t: 'textarea', full: true },
+        { k: 'body', l: 'Body (blank line between paragraphs)', t: 'textarea', full: true },
+        { k: 'published', l: 'Published on site', t: 'checkbox' }
+      ]
+    },
     enquiry: {
       title: 'Enquiry', resource: 'enquiries', list: () => db.enquiries, labelOf: (r) => r.name,
       fields: [
@@ -279,12 +313,15 @@
   function go(hash) { location.hash = hash; }
 
   const DYNAMIC = ['clients', 'invoices', 'projects'];
+  const ALIASES = { '/work': '/', '/pricing': '/services' }; // retired pages keep working
   function resolve() {
     const raw = (location.hash || '#/').slice(1) || '/';
     const [path] = raw.split('?');
     const parts = path.split('/').filter(Boolean);
-    const key = '/' + parts.join('/');
+    let key = '/' + parts.join('/');
+    if (ALIASES[key]) key = ALIASES[key];
     if (routes[key]) return { key, params: [] };
+    if (parts.length === 2 && parts[0] === 'blog') return { key: '/blog/:slug', params: [parts[1]] };
     if (parts.length === 3 && parts[0] === 'app' && DYNAMIC.indexOf(parts[1]) > -1) return { key: '/app/' + parts[1] + '/:id', params: [parts[2]] };
     return { key: '/', params: [] };
   }
@@ -294,6 +331,7 @@
     current = { path: key, params };
     if ((key.startsWith('/app') || key.startsWith('/portal')) && !db.session) { location.replace('#/login'); return; }
     if (key.startsWith('/app') && role() === 'client') { location.replace('#/portal'); return; }
+    closeDrawers();
     el('app').innerHTML = (routes[key] || routes['/'])(...params);
     window.scrollTo(0, 0);
     bind();
@@ -301,7 +339,7 @@
   window.addEventListener('hashchange', render);
 
   /* ---------------- public site ---------------- */
-  const NAV = [['/', 'Home'], ['/services', 'Services'], ['/work', 'Work'], ['/about', 'About'], ['/pricing', 'Pricing'], ['/contact', 'Contact']];
+  const NAV = [['/', 'Home'], ['/about', 'About'], ['/services', 'Services'], ['/blog', 'Blog'], ['/contact', 'Contact']];
   const services = () => db.content.services.slice().sort((a, b) => a.order - b.order);
   const plans = () => db.content.plans.slice().sort((a, b) => a.order - b.order);
   const works = () => db.content.work.filter((w) => w.published);
@@ -309,9 +347,10 @@
   function publicNav() {
     return `<header class="nav"><div class="wrap">
       <a href="#/" class="brand">${esc(db.settings.agency)}<small>Digital Marketing Agency</small></a>
-      <nav class="navlinks" id="pubnav">${NAV.map(([h, l]) => `<a href="#${h}" class="${current.path === h ? 'on' : ''}">${l}</a>`).join('')}
-        <a href="#/login">Sign in</a></nav>
-      <div class="row"><a class="btn" href="#/contact">Enquire Now →</a>
+      <nav class="navlinks" id="pubnav">${NAV.map(([h, l]) => `<a href="#${h}" class="${current.path === h || (h === '/blog' && current.path === '/blog/:slug') ? 'on' : ''}">${l}</a>`).join('')}
+        <a href="#/login">Sign in</a>
+        <a class="btn block nav-cta-mobile" href="#/onboarding">Start your project →</a></nav>
+      <div class="row"><a class="btn nav-cta" href="#/onboarding">Start your project →</a>
         <button class="navtoggle" data-toggle="pubnav" aria-label="Menu">☰</button></div>
     </div></header>`;
   }
@@ -335,7 +374,7 @@
       <div><div class="eyebrow">${esc(s.heroEyebrow)}</div>
         <h1 style="margin-top:14px">${esc(s.heroTitle)}</h1>
         <p class="lead">${esc(s.heroBody)}</p>
-        <div class="row" style="margin-top:22px"><a class="btn" href="#/contact">Enquire Now →</a><a class="btn ghost" href="#/work">View our work</a></div></div>
+        <div class="row wrap-row" style="margin-top:22px"><a class="btn" href="#/onboarding">Start your project →</a><a class="btn ghost" href="#/services">View our services</a></div></div>
       <div class="photo-frame hero"><img class="photo" src="${esc(s.heroImage)}" alt="Shai Studios client work" />
         <div class="quote">Ideas. Strategy.<br/>Real progress.</div></div>
     </div></section>
@@ -346,8 +385,8 @@
       <h3>${esc(x.name)}</h3><p style="font-size:.9rem">${esc(x.blurb)}</p>
       <div class="price-from">From</div><div class="price">${money(x.from)}</div></div>`).join('')}</div></div></section>
     <section class="band alt"><div class="wrap">
-      <div class="row between" style="margin-bottom:24px"><h2>Selected work</h2><a class="linkish" href="#/work">View all work →</a></div>
-      <div class="grid cards-3">${works().slice(0, 3).map(workCard).join('')}</div></div></section>
+      <div class="row between" style="margin-bottom:24px"><h2>Selected work</h2><a class="linkish" href="#/services">See what we do →</a></div>
+      <div class="grid cards-3">${works().slice(0, 6).map(workCard).join('')}</div></div></section>
     <section class="band"><div class="wrap grid cards-2" style="align-items:center">
       <div class="photo-frame wide"><img class="photo" loading="lazy" src="${esc(s.aboutImage)}" alt="The Shai Studios team at work" /></div>
       <div><div class="eyebrow">How we work</div><h2 style="margin:12px 0 6px">A simple, four-step partnership.</h2>
@@ -363,7 +402,7 @@
     </div></section>
     <section class="band alt"><div class="wrap"><div class="cta" style="background-image:linear-gradient(rgba(19,45,35,.84),rgba(19,45,35,.84)),url('${esc(s.ctaImage)}');background-size:cover;background-position:center">
       <div><h2>Let's build forward.</h2><p style="color:#c6d7cc;margin:6px 0 0">Brand. Content. Growth. Digital.</p></div>
-      <a class="btn light" href="#/contact">Enquire Now →</a></div></div></section>`);
+      <a class="btn light" href="#/onboarding">Start your project →</a></div></div></section>`);
   });
 
   route('/services', () => page(`
@@ -381,15 +420,23 @@
         <div><div class="eyebrow">Our process</div><h2 style="margin:12px 0 6px">From first call to measurable results.</h2>
           <ol class="steps">${PROCESS.map((p) => `<li><b>${esc(p[0])}</b><span>${esc(p[1])}</span></li>`).join('')}</ol></div>
         <div class="photo-frame wide"><img class="photo" loading="lazy" src="${esc(PHOTOS.cta)}" alt="Strategy session" /></div>
-      </div></div></section>`));
-
-  route('/work', () => page(`
-    <section class="band"><div class="wrap"><div class="eyebrow">Our work</div>
-      <div class="grid cards-2" style="align-items:start;margin-top:12px">
-        <h2>Real brands.<br/>Real progress.</h2>
-        <p style="padding-top:10px">Thoughtful strategy, powerful execution and measurable results.</p></div>
-      <div class="tabs" id="workTabs">${['All', 'Brand', 'Content', 'Growth', 'Digital'].map((t, i) => `<button class="tab ${i === 0 ? 'on' : ''}" data-filter="${t}">${t}</button>`).join('')}</div>
-      <div class="grid cards-3" id="workGrid">${works().map(workCard).join('')}</div></div></section>`));
+      </div>
+      <div class="eyebrow" style="margin-top:64px">Pricing</div>
+      <h2 style="margin:12px 0 6px">Marketing support for every stage.</h2>
+      <p>Clear packages. Real value. No hidden fees. All prices exclude VAT.</p>
+      <div class="grid cards-3" style="margin-top:32px">${plans().map((p) => `<div class="card pad-lg plan ${p.featured ? 'featured' : ''}">
+        ${p.featured ? '<span class="badge-top">Most popular</span>' : ''}
+        <h3>${esc(p.name)}</h3><p style="font-size:.88rem">${esc(p.blurb)}</p>
+        <div class="price" style="font-size:2.2rem;margin:10px 0 0">${money(p.price)}</div>
+        <div class="muted" style="font-size:.8rem">per month</div>
+        <ul class="checks">${p.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
+        <a class="btn ${p.featured ? '' : 'ghost'} block" href="#/onboarding?plan=${encodeURIComponent(p.name)}">Get started</a></div>`).join('')}</div>
+      <div class="card row between" style="margin-top:24px;flex-wrap:wrap;gap:14px">
+        <div><h3>Need something custom?</h3><p style="margin:2px 0 0;font-size:.9rem">We build bespoke solutions for larger organisations.</p></div>
+        <a class="btn ghost" href="#/contact">Request a custom quotation</a></div>
+      <h2 style="margin:56px 0 8px">Frequently asked</h2>
+      <div class="grid cards-2" style="margin-top:18px">${FAQ.map((f) => `<details class="card faq"><summary>${esc(f[0])}</summary><p style="font-size:.9rem">${esc(f[1])}</p></details>`).join('')}</div>
+      </div></section>`));
 
   route('/about', () => page(`
     <section class="band"><div class="wrap"><div class="eyebrow">About ${esc(db.settings.agency)}</div>
@@ -410,25 +457,6 @@
         <div style="padding:16px"><h3 style="font-size:1.05rem">${esc(m.name)}</h3><div class="muted" style="font-size:.85rem">${esc(m.role)}</div></div></div>`).join('')}</div>
       </div></section>`));
 
-  route('/pricing', () => page(`
-    <section class="band"><div class="wrap"><div class="eyebrow">Pricing</div>
-      <div class="grid cards-2" style="align-items:start;margin-top:12px">
-        <h2>Marketing support for every stage.</h2>
-        <p style="padding-top:10px">Clear packages. Real value. No hidden fees. All prices exclude VAT.</p></div>
-      <div class="grid cards-3" style="margin-top:40px">${plans().map((p) => `<div class="card pad-lg plan ${p.featured ? 'featured' : ''}">
-        ${p.featured ? '<span class="badge-top">Most popular</span>' : ''}
-        <h3>${esc(p.name)}</h3><p style="font-size:.88rem">${esc(p.blurb)}</p>
-        <div class="price" style="font-size:2.2rem;margin:10px 0 0">${money(p.price)}</div>
-        <div class="muted" style="font-size:.8rem">per month</div>
-        <ul class="checks">${p.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
-        <a class="btn ${p.featured ? '' : 'ghost'} block" href="#/contact">Get started</a></div>`).join('')}</div>
-      <div class="card row between" style="margin-top:28px;flex-wrap:wrap">
-        <div><h3>Need something custom?</h3><p style="margin:2px 0 0;font-size:.9rem">We build bespoke corporate solutions for larger organisations.</p></div>
-        <a class="btn ghost" href="#/contact">Request a custom quotation</a></div>
-      <h2 style="margin:56px 0 8px">Frequently asked</h2>
-      <div class="grid cards-2" style="margin-top:18px">${FAQ.map((f) => `<details class="card faq"><summary>${esc(f[0])}</summary><p style="font-size:.9rem">${esc(f[1])}</p></details>`).join('')}</div>
-    </div></section>`));
-
   route('/contact', () => page(`
     <section class="band"><div class="wrap"><div class="eyebrow">Let's talk</div>
       <div class="hero-grid" style="padding-top:18px;align-items:start">
@@ -438,6 +466,7 @@
             <div class="row" style="gap:10px"><span class="icon" style="margin:0">✉</span><div><div style="font-size:.8rem;font-weight:500">Email us</div><div class="muted" style="font-size:.88rem">${esc(db.settings.email)}</div></div></div>
             <div class="row" style="gap:10px;margin-top:14px"><span class="icon" style="margin:0">☏</span><div><div style="font-size:.8rem;font-weight:500">WhatsApp us</div><div class="muted" style="font-size:.88rem">${esc(db.settings.phone)}</div></div></div>
             <div class="row" style="gap:10px;margin-top:14px"><span class="icon" style="margin:0">⌖</span><div><div style="font-size:.8rem;font-weight:500">Based in</div><div class="muted" style="font-size:.88rem">${esc(db.settings.address)}</div></div></div>
+            <a class="btn block" style="margin-top:18px" href="#/onboarding">Or start the 3-minute onboarding →</a>
           </div></div>
         <form class="card pad-lg" id="enqForm">
           <div class="field-row"><div class="field"><label for="eName">Your name</label><input id="eName" required /></div>
@@ -473,6 +502,176 @@
     ['What happens after I enquire?', 'You get a reply within 1-2 business days and a free 30-minute discovery call.'],
     ['Can I change package mid-way?', 'Yes - upgrade, downgrade or pause with 30 days notice via your client portal.']
   ];
+
+  const posts = () => db.content.posts.filter((p) => p.published).slice().sort((a, b) => (a.date < b.date ? 1 : -1));
+  const slugOf = (p) => p.slug || p.id;
+  const postBody = (p) => String(p.body || '').split(/\n{2,}|\n/).filter(Boolean).map((x) => `<p>${esc(x)}</p>`).join('');
+
+  route('/blog', () => {
+    const list = posts();
+    const [lead, ...rest] = list;
+    return page(`
+    <section class="band"><div class="wrap"><div class="eyebrow">The blog</div>
+      <div class="grid cards-2" style="align-items:start;margin-top:12px">
+        <h2>Ideas worth<br/>stealing.</h2>
+        <p style="padding-top:10px">Practical marketing thinking for owner-led businesses — no jargon, no gatekeeping.</p></div>
+      ${lead ? `<a class="card post-lead" href="#/blog/${esc(slugOf(lead))}" style="margin-top:36px;padding:0;overflow:hidden;display:block">
+        <div class="grid cards-2" style="gap:0;align-items:stretch">
+          <div class="photo-frame" style="border-radius:0;box-shadow:none;min-height:280px"><img class="photo" src="${esc(lead.image)}" alt="${esc(lead.title)}" /></div>
+          <div style="padding:32px"><span class="pill">${esc(lead.category)}</span>
+            <h3 style="font-size:1.9rem;margin:14px 0 8px">${esc(lead.title)}</h3>
+            <p>${esc(lead.excerpt)}</p>
+            <div class="muted" style="font-size:.8rem;margin-top:14px">${esc(lead.author)} · ${fmtDate(lead.date)}</div>
+            <span class="linkish" style="display:inline-block;margin-top:14px">Read article →</span></div>
+        </div></a>` : '<div class="card empty" style="margin-top:32px">No posts published yet.</div>'}
+      <div class="grid cards-3" style="margin-top:22px">${rest.map((p) => `<a class="card work-card" href="#/blog/${esc(slugOf(p))}" style="display:block">
+        <div class="photo-frame"><img class="photo" loading="lazy" src="${esc(p.image)}" alt="${esc(p.title)}" /></div>
+        <div class="body"><span class="pill">${esc(p.category)}</span>
+          <h3 style="font-size:1.15rem;margin:10px 0 6px">${esc(p.title)}</h3>
+          <p style="font-size:.88rem">${esc(p.excerpt)}</p>
+          <div class="muted" style="font-size:.78rem;margin-top:10px">${esc(p.author)} · ${fmtDate(p.date)}</div></div></a>`).join('')}</div>
+    </div></section>`);
+  });
+
+  route('/blog/:slug', (slug) => {
+    const p = db.content.posts.find((x) => slugOf(x) === slug && x.published);
+    if (!p) return page('<section class="band"><div class="wrap"><h2>Post not found.</h2><p><a class="linkish" href="#/blog">Back to the blog</a></p></div></section>');
+    const more = posts().filter((x) => x.id !== p.id).slice(0, 3);
+    return page(`
+    <article class="band"><div class="wrap article">
+      <nav class="crumbs" style="margin-bottom:18px"><a href="#/">Home</a><span class="sep">/</span><a href="#/blog">Blog</a><span class="sep">/</span><span aria-current="page">${esc(p.category)}</span></nav>
+      <span class="pill">${esc(p.category)}</span>
+      <h1 style="font-size:clamp(2rem,4vw,3.2rem);margin:14px 0 10px">${esc(p.title)}</h1>
+      <div class="muted" style="font-size:.88rem">${esc(p.author)} · ${fmtDate(p.date)}</div>
+      <div class="photo-frame wide" style="margin:28px 0"><img class="photo" src="${esc(p.image)}" alt="${esc(p.title)}" /></div>
+      <div class="prose"><p class="lead-para">${esc(p.excerpt)}</p>${postBody(p)}</div>
+      <div class="cta" style="margin-top:44px"><div><h2>Want this done for you?</h2>
+        <p style="color:#c6d7cc;margin:6px 0 0">Tell us about your business in three minutes.</p></div>
+        <a class="btn light" href="#/onboarding">Start your project →</a></div>
+    </div></article>
+    <section class="band alt"><div class="wrap"><h2 style="margin-bottom:22px">More reading</h2>
+      <div class="grid cards-3">${more.map((x) => `<a class="card work-card" href="#/blog/${esc(slugOf(x))}" style="display:block">
+        <div class="photo-frame"><img class="photo" loading="lazy" src="${esc(x.image)}" alt="${esc(x.title)}" /></div>
+        <div class="body"><h3 style="font-size:1.05rem">${esc(x.title)}</h3><div class="muted" style="font-size:.78rem;margin-top:6px">${fmtDate(x.date)}</div></div></a>`).join('')}</div>
+    </div></section>`);
+  });
+
+  /* ---------------- client onboarding wizard ---------------- */
+  const WIZ_KEY = 'shai-onboarding-draft';
+  const WIZ_STEPS = ['About you', 'Your business', 'Goals', 'Budget & timeline', 'Your account', 'Review'];
+  const GOALS = ['More qualified leads', 'Brand awareness', 'Online sales', 'Social media growth', 'A new website', 'Better reporting'];
+  let wiz = null;
+  function loadWiz() {
+    if (wiz) return wiz;
+    try { wiz = JSON.parse(localStorage.getItem(WIZ_KEY)); } catch (e) { wiz = null; }
+    if (!wiz || !wiz.data) wiz = { step: 0, data: { name: '', email: '', phone: '', jobTitle: '', business: '', industry: '', website: '', size: '', location: '', services: [], goals: [], plan: '', budget: '', start: '', brief: '', password: '', terms: false } };
+    const q = (location.hash.split('?')[1] || '').match(/plan=([^&]+)/);
+    if (q && !wiz.data.plan) wiz.data.plan = decodeURIComponent(q[1]);
+    return wiz;
+  }
+  const saveWiz = () => { try { localStorage.setItem(WIZ_KEY, JSON.stringify(wiz)); } catch (e) {} };
+  function wizErrors(step) {
+    const d = wiz.data; const e = [];
+    if (step === 0) {
+      if (!d.name.trim()) e.push('Your name is required.');
+      if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(d.email)) e.push('A valid email address is required.');
+    }
+    if (step === 1 && !d.business.trim()) e.push('Business name is required.');
+    if (step === 2 && !d.services.length) e.push('Choose at least one service.');
+    if (step === 3 && !d.budget) e.push('Choose a budget range.');
+    if (step === 4) {
+      if ((d.password || '').length < 8) e.push('Choose a password of at least 8 characters.');
+      if (!d.terms) e.push('Please accept the terms to continue.');
+      if (db.users.some((u) => u.email.toLowerCase() === d.email.trim().toLowerCase())) e.push('An account already exists for that email — sign in instead.');
+    }
+    return e;
+  }
+  const chips = (name, opts, chosen) => `<div class="chips">${opts.map((o) => `<button type="button" class="chip ${chosen.indexOf(o) > -1 ? 'on' : ''}" data-chip="${name}:${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
+
+  route('/onboarding', () => {
+    loadWiz();
+    const d = wiz.data; const step = wiz.step;
+    const errs = wiz.showErrors ? wizErrors(step) : [];
+    const field = (k, l, t, ph) => `<div class="field"><label for="w_${k}">${l}</label><input id="w_${k}" data-wiz="${k}" type="${t || 'text'}" value="${esc(d[k])}" placeholder="${esc(ph || '')}" /></div>`;
+    const select = (k, l, opts) => `<div class="field"><label for="w_${k}">${l}</label><select id="w_${k}" data-wiz="${k}">${['— select —'].concat(opts).map((o, i) => `<option value="${i ? esc(o) : ''}" ${(i ? o : '') === d[k] ? 'selected' : ''}>${esc(o)}</option>`).join('')}</select></div>`;
+    let body = '';
+    if (step === 0) body = `<h2>First, who are we speaking to?</h2><p>We reply to every enquiry within one business day.</p>
+      <div class="field-row">${field('name', 'Your full name')}${field('email', 'Email address', 'email')}</div>
+      <div class="field-row">${field('phone', 'Phone / WhatsApp', 'tel')}${field('jobTitle', 'Your role', 'text', 'Founder, Marketing Manager…')}</div>`;
+    else if (step === 1) body = `<h2>Tell us about the business.</h2><p>This shapes the strategy we bring to the first call.</p>
+      <div class="field-row">${field('business', 'Business name')}${select('industry', 'Industry', ['Retail & e-commerce', 'Health & wellness', 'Professional services', 'Hospitality & food', 'Property & interiors', 'Non-profit', 'Other'])}</div>
+      <div class="field-row">${field('website', 'Website (if you have one)', 'text', 'https://')}${select('size', 'Team size', ['Just me', '2–10 people', '11–50 people', '50+ people'])}</div>
+      ${field('location', 'Where are you based?', 'text', 'Cape Town, South Africa')}`;
+    else if (step === 2) body = `<h2>What do you need help with?</h2><p>Pick everything that applies — you can change this later.</p>
+      <label>Services</label>${chips('services', db.content.services.map((x) => x.name), d.services)}
+      <label style="margin-top:22px">Your goals for the next 12 months</label>${chips('goals', GOALS, d.goals)}
+      <div style="margin-top:22px">${select('plan', 'Package you are considering', plans().map((p) => p.name + ' — ' + money(p.price) + '/mo').concat(['Not sure yet']))}</div>`;
+    else if (step === 3) body = `<h2>Budget and timing.</h2><p>An honest range helps us recommend something that actually fits.</p>
+      <div class="field-row">${select('budget', 'Monthly budget', ['Under R5 000', 'R5 000 – R10 000', 'R10 000 – R20 000', 'R20 000+'])}
+      ${select('start', 'When would you like to start?', ['As soon as possible', 'Within a month', 'This quarter', 'Just exploring'])}</div>
+      <div class="field"><label for="w_brief">Anything else we should know?</label>
+        <textarea id="w_brief" data-wiz="brief" rows="5" placeholder="Your audience, what you have tried before, competitors you admire...">${esc(d.brief)}</textarea></div>`;
+    else if (step === 4) body = `<h2>Create your client portal.</h2><p>You will use this to track projects, files and invoices — and it is ready the moment you submit.</p>
+      <div class="field"><label>Your sign-in email</label><input value="${esc(d.email)}" disabled /></div>
+      <div class="field"><label for="w_password">Choose a password</label><input id="w_password" data-wiz="password" type="password" value="${esc(d.password)}" placeholder="At least 8 characters" /></div>
+      <label class="row check-row" style="gap:10px;font-weight:400"><input type="checkbox" id="w_terms" data-wiz="terms" ${d.terms ? 'checked' : ''} style="width:auto" />
+        <span style="font-size:.88rem">I agree to be contacted about this enquiry and accept the terms of service.</span></label>`;
+    else {
+      const line = (l, v) => `<div class="row between review-line"><span class="muted">${l}</span><span>${esc(v || '—')}</span></div>`;
+      body = `<h2>One last look.</h2><p>Check the details, then submit — we will be in touch within one business day.</p>
+        <div class="card" style="margin-top:18px">
+          ${line('Name', d.name)}${line('Email', d.email)}${line('Phone', d.phone)}${line('Business', d.business)}
+          ${line('Industry', d.industry)}${line('Team size', d.size)}${line('Website', d.website)}${line('Location', d.location)}
+          ${line('Services', d.services.join(', '))}${line('Goals', d.goals.join(', '))}${line('Package', d.plan)}
+          ${line('Budget', d.budget)}${line('Timing', d.start)}${line('Brief', d.brief)}</div>`;
+    }
+    const pct = Math.round((step / (WIZ_STEPS.length - 1)) * 100);
+    return page(`
+    <section class="band wizard-band"><div class="wrap wizard">
+      <div class="wizard-head">
+        <div class="row between" style="flex-wrap:wrap;gap:10px">
+          <div><div class="eyebrow">Client onboarding</div><h1 style="font-size:clamp(1.8rem,3.5vw,2.6rem);margin-top:8px">Let's build forward.</h1></div>
+          <div class="muted" style="font-size:.85rem">Step ${step + 1} of ${WIZ_STEPS.length} · ${esc(WIZ_STEPS[step])}</div>
+        </div>
+        <div class="wizard-steps">${WIZ_STEPS.map((l, i) => `<div class="wstep ${i === step ? 'on' : ''} ${i < step ? 'done' : ''}"><span class="dot">${i < step ? '✓' : i + 1}</span><span class="lbl">${esc(l)}</span></div>`).join('')}</div>
+        <div class="bar" style="margin-top:14px"><i style="width:${pct}%"></i></div>
+      </div>
+      <form class="card pad-lg wizard-card" id="wizForm">
+        ${body}
+        ${errs.length ? `<div class="error-box">${errs.map((x) => `<div>${esc(x)}</div>`).join('')}</div>` : ''}
+        <div class="row between wizard-actions">
+          <button type="button" class="btn ghost" data-wiz-back ${step === 0 ? 'disabled' : ''}>← Back</button>
+          <div class="row" style="gap:10px">
+            <span class="muted saved-note">Progress saved on this device</span>
+            ${step === WIZ_STEPS.length - 1
+              ? '<button type="submit" class="btn" data-wiz-submit>Submit & open my portal →</button>'
+              : '<button type="submit" class="btn" data-wiz-next>Continue →</button>'}
+          </div></div>
+      </form>
+      <p class="muted center" style="font-size:.8rem;margin-top:18px">Prefer to just talk? <a class="linkish" href="#/contact">Send us a message instead.</a></p>
+    </div></section>`);
+  });
+
+  function submitWizard() {
+    const d = wiz.data;
+    const c = { id: uid('c'), name: d.business || d.name, person: d.name, email: d.email, phone: d.phone,
+      service: d.services[0] || 'Brand', status: 'Onboarding',
+      notes: [d.brief, d.website && ('Website: ' + d.website), d.location].filter(Boolean).join('\n'), createdAt: Date.now() };
+    db.clients.unshift(c);
+    const u = { id: uid('u'), name: d.name, email: d.email, role: 'client', status: 'Active', password: d.password, clientId: c.id, createdAt: Date.now() };
+    db.users.unshift(u);
+    db.projects.unshift({ id: uid('p'), name: 'Onboarding & discovery', clientId: c.id, type: 'Strategy', owner: db.settings.owner,
+      deadline: daysFromNow(14), progress: 10, status: 'Planning', createdAt: Date.now() });
+    db.enquiries.unshift({ id: uid('e'), name: d.name, email: d.email, type: d.services.join(', ') || 'Not sure yet',
+      budget: d.budget, message: d.brief, status: 'Qualified', at: Date.now() });
+    db.onboardings.unshift(Object.assign({ id: uid('o'), clientId: c.id, at: Date.now() }, d, { password: undefined }));
+    audit('created', 'Client', c.name, 'self-serve onboarding');
+    audit('created', 'User', u.name, 'client portal account');
+    log('New client ' + c.name + ' completed onboarding');
+    localStorage.removeItem(WIZ_KEY); wiz = null;
+    save(); signIn(u);
+    toast('Welcome to ' + db.settings.agency + ', ' + d.name.split(' ')[0] + '!');
+  }
 
   /* ---------------- sign in ---------------- */
   route('/login', () => `
@@ -537,6 +736,19 @@
         </div>
         <div class="page">${body}</div>
       </main></div>`;
+  }
+
+  // onboarding answers captured by the public wizard, shown on the client record
+  function onboardingCard(clientId) {
+    const o = db.onboardings.find((x) => x.clientId === clientId);
+    if (!o) return '';
+    const rows = [['Role', o.jobTitle], ['Industry', o.industry], ['Team size', o.size], ['Website', o.website],
+      ['Location', o.location], ['Services', (o.services || []).join(', ')], ['Goals', (o.goals || []).join(', ')],
+      ['Package', o.plan], ['Budget', o.budget], ['Timing', o.start]];
+    return `<div class="card" style="margin-top:20px"><h3>Onboarding answers</h3>
+      <div class="muted" style="font-size:.78rem;margin-bottom:8px">Submitted ${fmtStamp(o.at)}</div>
+      ${rows.map((r) => `<div class="row between review-line"><span class="muted">${esc(r[0])}</span><span>${esc(r[1] || '—')}</span></div>`).join('')}
+      ${o.brief ? `<p style="font-size:.88rem;margin-top:10px">${esc(o.brief)}</p>` : ''}</div>`;
   }
 
   // row action buttons, permission aware
@@ -647,6 +859,7 @@
             <div class="row between" style="margin-top:8px"><span class="muted">Projects</span><b>${projs.length}</b></div>
             <div class="row between" style="margin-top:8px"><span class="muted">Portal users</span><b>${users.length}</b></div>
           </div>
+          ${onboardingCard(id)}
           <div class="card" style="margin-top:20px"><h3>Internal notes</h3>
             <textarea id="clientNotes" rows="5" ${can('clients', 'edit') ? '' : 'disabled'}>${esc(c.notes)}</textarea>
             ${can('clients', 'edit') ? `<button class="btn sm" style="margin-top:10px" data-save-notes="${c.id}">Save notes</button>` : ''}</div>
@@ -798,6 +1011,13 @@
         ${db.content.work.map((x) => `<tr><td><b>${esc(x.client)}</b></td><td>${esc(x.service)}</td><td>${esc(x.result)}</td><td><span class="pill">${esc(x.tag)}</span></td>
           <td>${x.published ? '<span class="pill paid">Live</span>' : '<span class="pill draft">Hidden</span>'}</td>
           <td class="right">${rowActions('work', x.id)}</td></tr>`).join('')}</tbody></table></div>`;
+    } else if (contentTab === 'posts') {
+      body = `<div class="table-card"><table><thead><tr><th>Post</th><th>Category</th><th>Author</th><th>Date</th><th>Status</th><th class="right">Actions</th></tr></thead><tbody>
+        ${db.content.posts.slice().sort((a, b) => (a.date < b.date ? 1 : -1)).map((x) => `<tr>
+          <td><b>${esc(x.title)}</b><div class="muted" style="font-size:.78rem">/blog/${esc(x.slug || x.id)}</div></td>
+          <td><span class="pill">${esc(x.category)}</span></td><td>${esc(x.author)}</td><td>${fmtDate(x.date)}</td>
+          <td>${x.published ? '<span class="pill paid">Live</span>' : '<span class="pill draft">Draft</span>'}</td>
+          <td class="right">${rowActions('post', x.id)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (contentTab === 'plans') {
       body = `<div class="table-card"><table><thead><tr><th>Order</th><th>Plan</th><th>Price</th><th>Features</th><th>Featured</th><th class="right">Actions</th></tr></thead><tbody>
         ${plans().map((x) => `<tr><td>${x.order}</td><td><b>${esc(x.name)}</b><div class="muted" style="font-size:.78rem">${esc(x.blurb)}</div></td><td>${money(x.price)}</td>
@@ -811,11 +1031,11 @@
         ${f('heroImage', 'Hero photo URL')}${f('aboutImage', 'About photo URL')}${f('ctaImage', 'CTA banner photo URL')}
         ${can('content', 'edit') ? '<button class="btn" data-save-site>Save site copy</button>' : ''}</div>`;
     }
-    const newBtn = { services: 'service', work: 'work', plans: 'plan' }[contentTab];
-    return shell([['#/app/content', 'Site content'], ['#', { services: 'Services', work: 'Case studies', plans: 'Pricing plans', copy: 'Page copy' }[contentTab]]], `
+    const newBtn = { services: 'service', work: 'work', plans: 'plan', posts: 'post' }[contentTab];
+    return shell([['#/app/content', 'Site content'], ['#', { services: 'Services', posts: 'Blog posts', work: 'Case studies', plans: 'Pricing plans', copy: 'Page copy' }[contentTab]]], `
       <div class="page-head"><div><h1 style="font-size:2.2rem">Site content</h1><p>Everything on the public website is editable here — changes go live instantly.</p></div>
         ${newBtn && can('content', 'create') ? `<button class="btn" data-new="${newBtn}">＋ Add ${SCHEMAS[newBtn].title.toLowerCase()}</button>` : ''}</div>
-      <div class="tabbar">${tabBtn('services', 'Services')}${tabBtn('work', 'Case studies')}${tabBtn('plans', 'Pricing plans')}${tabBtn('copy', 'Page copy')}</div>
+      <div class="tabbar">${tabBtn('services', 'Services')}${tabBtn('posts', 'Blog posts')}${tabBtn('work', 'Case studies')}${tabBtn('plans', 'Pricing plans')}${tabBtn('copy', 'Page copy')}</div>
       ${body}`);
   });
 
@@ -891,6 +1111,15 @@
       <nav class="crumbs" style="margin-top:14px"><a href="#/">Home</a><span class="sep">/</span><span>Client portal</span></nav>
       <h1 style="font-size:2rem;margin:18px 0 4px">Welcome, ${esc((c.person || '').split(' ')[0])}.</h1>
       <p>Here's the latest on your projects with ${esc(db.settings.agency)}.</p>
+      ${c.status === 'Onboarding' ? `<div class="card pad-lg" style="margin-top:20px;border-color:var(--green-600)">
+        <span class="pill sent">Onboarding</span>
+        <h3 style="margin:10px 0 4px">You're in. Here's what happens next.</h3>
+        <ol class="steps" style="margin-top:8px">
+          <li><b>1 · We review your brief</b><span>Within one business day, by ${esc(db.settings.owner)}.</span></li>
+          <li><b>2 · Discovery call</b><span>A 30-minute call to confirm scope, budget and timing.</span></li>
+          <li><b>3 · Proposal & first invoice</b><span>Both land right here in your portal.</span></li>
+        </ol>
+        <a class="btn block" style="margin-top:14px" href="#/contact">Ask us a question</a></div>` : ''}
       ${open ? `<div class="card pad-lg" style="margin-top:20px">
         <div class="row between"><div class="muted" style="font-size:.8rem">Invoice ${esc(open.number)}</div><span class="pill ${open.status.toLowerCase()}">${open.status}</span></div>
         <div class="price" style="font-size:2.2rem">${money(invTotals(open).total)}</div>
@@ -940,6 +1169,11 @@
     </form></div>`);
     const first = $('.modal input, .modal select'); if (first) first.focus();
   }
+  function closeDrawers() {
+    ['pubnav', 'appnav'].forEach((k) => { const n = el(k); if (n) n.classList.remove('open'); });
+    const sc = document.querySelector('.scrim'); if (sc) sc.remove();
+  }
+
   const closeModal = () => { const m = $('.modal-bg'); if (m) m.remove(); };
 
   function readForm(entity) {
@@ -1000,6 +1234,26 @@
       signIn(u);
     });
 
+    const wf = el('wizForm');
+    if (wf) {
+      wf.addEventListener('input', (e) => {
+        const n = e.target.closest('[data-wiz]'); if (!n) return;
+        wiz.data[n.dataset.wiz] = n.type === 'checkbox' ? n.checked : n.value; saveWiz();
+      });
+      wf.addEventListener('change', (e) => {
+        const n = e.target.closest('[data-wiz]'); if (!n) return;
+        wiz.data[n.dataset.wiz] = n.type === 'checkbox' ? n.checked : n.value; saveWiz();
+      });
+      wf.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const errs = wizErrors(wiz.step);
+        if (errs.length) { wiz.showErrors = true; saveWiz(); render(); return; }
+        wiz.showErrors = false;
+        if (wiz.step === WIZ_STEPS.length - 1) { submitWizard(); return; }
+        wiz.step++; saveWiz(); render();
+      });
+    }
+
     const dc = el('dClient');
     if (dc) dc.addEventListener('change', () => { syncDraft(); render(); });
     ['dNumber', 'dIssue', 'dDue', 'dTerms', 'dNotes', 'dStatus'].forEach((k) => { const n = el(k); if (n) n.addEventListener('change', syncDraft); });
@@ -1034,8 +1288,25 @@
     const t = e.target;
     const hit = (attr) => { const n = t.closest('[' + attr + ']'); return n ? n.getAttribute(attr) : null; };
 
+    const chip = hit('data-chip');
+    if (chip) {
+      const [k, v] = chip.split(':'); const arr = wiz.data[k];
+      const i = arr.indexOf(v); if (i > -1) arr.splice(i, 1); else arr.push(v);
+      saveWiz(); render(); return;
+    }
+    if (t.closest('[data-wiz-back]')) { if (wiz.step > 0) { wiz.step--; wiz.showErrors = false; saveWiz(); render(); } return; }
+
+    if (t.classList.contains('scrim')) { closeDrawers(); return; }
     const toggle = hit('data-toggle');
-    if (toggle) { el(toggle).classList.toggle('open'); return; }
+    if (toggle) {
+      const n = el(toggle); const opening = !n.classList.contains('open');
+      closeDrawers();
+      if (opening) {
+        n.classList.add('open');
+        if (toggle === 'appnav') document.body.insertAdjacentHTML('beforeend', '<div class="scrim"></div>');
+      }
+      return;
+    }
 
     const demo = hit('data-demo');
     if (demo) { const u = db.users.find((x) => x.id === demo); if (u) signIn(u); return; }
@@ -1212,7 +1483,7 @@
     save(); closeModal(); toast('Saved.'); render();
   });
 
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeModal(); closeDrawers(); } });
 
   render();
 })();
