@@ -70,6 +70,7 @@
     users: { superadmin: '*', admin: 'view,create,edit' },
     settings: { superadmin: '*', admin: 'view,edit' },
     audit: { superadmin: '*', admin: 'view' },
+    orders: { superadmin: '*', admin: '*', manager: 'view,edit', staff: 'view' },
     portal: { client: 'view', superadmin: 'view', admin: 'view' }
   };
   const role = () => (db.session && db.session.role) || 'client';
@@ -124,7 +125,7 @@
       u('Sarah Ndlovu', 'sarah@lumi.co.za', 'client', { clientId: byName('LUMI Collective') })
     ];
     return {
-      clients, projects, invoices, users, enquiries: [], audit: [], onboardings: [],
+      clients, projects, invoices, users, enquiries: [], audit: [], onboardings: [], orders: [],
       content: {
         services: [
           { id: uid('s'), icon: '◍', name: 'Brand', blurb: 'Positioning, visual identity and brand strategy.', items: ['Brand strategy', 'Visual identity', 'Brand messaging'], from: 8500, order: 1, image: PHOTOS.brand },
@@ -144,6 +145,14 @@
           { id: uid('pl'), name: 'Launch', price: 6500, blurb: 'Get started with the essentials.', items: ['Social media management', '10 posts per month', 'Basic reporting', 'Email support'], featured: false, order: 1 },
           { id: uid('pl'), name: 'Grow', price: 12000, blurb: 'Accelerate your momentum.', items: ['Everything in Launch', 'Content creation (photo & video)', 'Paid ads management', 'Monthly strategy call', 'Priority support'], featured: true, order: 2 },
           { id: uid('pl'), name: 'Partner', price: 20000, blurb: 'A tailored solution for scale.', items: ['Custom strategy & roadmap', 'Full-service support', 'Dedicated account manager', 'Advanced reporting', 'Website & digital projects'], featured: false, order: 3 }
+        ],
+        products: [
+          { id: uid('sp'), name: 'Brand Strategy Template', category: 'Templates', price: 450, blurb: 'The 12-page workbook we use in every brand kickoff.', image: PHOTOS.brand, badge: 'Bestseller', published: true, order: 1 },
+          { id: uid('sp'), name: 'Social Media Kit', category: 'Social Media', price: 350, blurb: '60 editable post and story layouts for Canva.', image: PHOTOS.w2, badge: '', published: true, order: 2 },
+          { id: uid('sp'), name: 'Marketing Planner', category: 'Planning', price: 299, blurb: 'A 90-day plan with budget, channel and KPI trackers.', image: PHOTOS.w5, badge: '', published: true, order: 3 },
+          { id: uid('sp'), name: 'Canva Template Pack', category: 'Design', price: 199, blurb: 'Presentations, one-pagers and proposals in one pack.', image: PHOTOS.w1, badge: 'New', published: true, order: 4 },
+          { id: uid('sp'), name: 'Content Calendar', category: 'Planning', price: 120, blurb: 'A 12-month calendar pre-filled with SA retail moments.', image: PHOTOS.content, badge: '', published: true, order: 5 },
+          { id: uid('sp'), name: 'Brand Guidelines Kit', category: 'Business', price: 249, blurb: 'Document your logo, colour and voice rules properly.', image: PHOTOS.w3, badge: '', published: true, order: 6 }
         ],
         posts: [
           { id: uid('b'), title: 'Five signs your brand has outgrown its logo', slug: 'outgrown-your-logo', category: 'Brand',
@@ -167,7 +176,7 @@
           heroEyebrow: 'Strategy meets creativity',
           heroTitle: 'Your brand, built forward.',
           heroBody: 'Professional digital marketing made accessible. We help purpose-driven businesses grow through strategy, content and digital marketing that delivers real results — without the agency jargon.',
-          aboutTitle: 'Built on purpose. Driven by progress.',
+          aboutTitle: 'Small studio. Serious growth.',
           aboutBody: 'Shai Studios is an independent digital marketing agency helping purpose-driven brands grow through strategy, content and digital. We believe great marketing should be accessible, human and results-driven.',
           tagline: 'Strategy creates opportunity.',
           heroImage: PHOTOS.hero,
@@ -190,7 +199,9 @@
   try { db = JSON.parse(localStorage.getItem(KEY)) || seed(); } catch (e) { db = seed(); }
   if (!db || !db.clients || !db.users || !db.content) db = seed();
   if (!db.content.posts) db.content.posts = seed().content.posts;   // v3: blog
-  if (!db.onboardings) db.onboardings = [];                          // v3: onboarding wizard
+  if (!db.onboardings) db.onboardings = [];
+  if (!db.content.products) db.content.products = seed().content.products; // v4: store
+  if (!db.orders) db.orders = [];                          // v3: onboarding wizard
   const save = () => { try { localStorage.setItem(KEY, JSON.stringify(db)); } catch (e) {} };
   const log = (text) => { db.activity.unshift({ text, at: Date.now() }); db.activity = db.activity.slice(0, 60); };
   function audit(action, entity, label, detail) {
@@ -292,6 +303,19 @@
         { k: 'published', l: 'Published on site', t: 'checkbox' }
       ]
     },
+    product: {
+      title: 'Store product', resource: 'content', list: () => db.content.products, labelOf: (r) => r.name,
+      fields: [
+        { k: 'name', l: 'Product name', req: true, full: true },
+        { k: 'category', l: 'Category', t: 'select', opts: ['Templates', 'Social Media', 'Planning', 'Business', 'Design'] },
+        { k: 'price', l: 'Price (ZAR, incl. VAT)', t: 'number', def: () => 199 },
+        { k: 'blurb', l: 'Short description', t: 'textarea', full: true },
+        { k: 'image', l: 'Product photo URL', full: true, def: () => PHOTOS.brand },
+        { k: 'badge', l: 'Badge (e.g. New, Bestseller)' },
+        { k: 'order', l: 'Display order', t: 'number', def: () => 9 },
+        { k: 'published', l: 'Visible in store', t: 'checkbox' }
+      ]
+    },
     enquiry: {
       title: 'Enquiry', resource: 'enquiries', list: () => db.enquiries, labelOf: (r) => r.name,
       fields: [
@@ -313,7 +337,7 @@
   function go(hash) { location.hash = hash; }
 
   const DYNAMIC = ['clients', 'invoices', 'projects'];
-  const ALIASES = { '/work': '/', '/pricing': '/services' }; // retired pages keep working
+  const ALIASES = { '/pricing': '/quote', '/onboarding': '/quote' }; // retired pages keep working
   function resolve() {
     const raw = (location.hash || '#/').slice(1) || '/';
     const [path] = raw.split('?');
@@ -339,7 +363,7 @@
   window.addEventListener('hashchange', render);
 
   /* ---------------- public site ---------------- */
-  const NAV = [['/', 'Home'], ['/about', 'About'], ['/services', 'Services'], ['/blog', 'Blog'], ['/contact', 'Contact']];
+  const NAV = [['/', 'Home'], ['/services', 'Services'], ['/work', 'Work'], ['/about', 'About'], ['/store', 'Store'], ['/contact', 'Contact']];
   const services = () => db.content.services.slice().sort((a, b) => a.order - b.order);
   const plans = () => db.content.plans.slice().sort((a, b) => a.order - b.order);
   const works = () => db.content.work.filter((w) => w.published);
@@ -348,9 +372,10 @@
     return `<header class="nav"><div class="wrap">
       <a href="#/" class="brand">${esc(db.settings.agency)}<small>Digital Marketing Agency</small></a>
       <nav class="navlinks" id="pubnav">${NAV.map(([h, l]) => `<a href="#${h}" class="${current.path === h || (h === '/blog' && current.path === '/blog/:slug') ? 'on' : ''}">${l}</a>`).join('')}
-        <a href="#/login">Sign in</a>
-        <a class="btn block nav-cta-mobile" href="#/onboarding">Start your project →</a></nav>
-      <div class="row"><a class="btn nav-cta" href="#/onboarding">Start your project →</a>
+        <a href="#/blog">Blog</a><a href="#/login">Sign in</a>
+        <a class="btn block nav-cta-mobile" href="#/quote">Get a quote →</a></nav>
+      <div class="row"><a class="cart-link" href="#/cart" aria-label="Cart">Cart<span class="cart-count">${cartCount()}</span></a>
+        <a class="btn nav-cta" href="#/quote">Get a quote →</a>
         <button class="navtoggle" data-toggle="pubnav" aria-label="Menu">☰</button></div>
     </div></header>`;
   }
@@ -358,7 +383,7 @@
     return `<footer class="site"><div class="wrap">
       <div><div class="brand" style="color:#fff">${esc(db.settings.agency)}</div>
       <p style="color:#9fb8ab;font-size:.85rem;margin:6px 0 0">Independent digital marketing agency · Cape Town</p></div>
-      <nav class="row" style="flex-wrap:wrap;gap:18px">${NAV.map(([h, l]) => `<a href="#${h}">${l}</a>`).join('')}<a href="#/login">Sign in</a></nav>
+      <nav class="row" style="flex-wrap:wrap;gap:18px">${NAV.map(([h, l]) => `<a href="#${h}">${l}</a>`).join('')}<a href="#/blog">Blog</a><a href="#/quote">Get a quote</a><a href="#/login">Sign in</a></nav>
       <div style="font-size:.8rem;color:#9fb8ab">${esc(db.content.site.tagline)}</div>
     </div></footer>`;
   }
@@ -374,7 +399,7 @@
       <div><div class="eyebrow">${esc(s.heroEyebrow)}</div>
         <h1 style="margin-top:14px">${esc(s.heroTitle)}</h1>
         <p class="lead">${esc(s.heroBody)}</p>
-        <div class="row wrap-row" style="margin-top:22px"><a class="btn" href="#/onboarding">Start your project →</a><a class="btn ghost" href="#/services">View our services</a></div></div>
+        <div class="row wrap-row" style="margin-top:22px"><a class="btn" href="#/quote">Get a quote →</a><a class="btn ghost" href="#/services">View our services</a></div></div>
       <div class="photo-frame hero"><img class="photo" src="${esc(s.heroImage)}" alt="Shai Studios client work" />
         <div class="quote">Ideas. Strategy.<br/>Real progress.</div></div>
     </div></section>
@@ -383,10 +408,10 @@
     </div></section>
     <section class="band"><div class="wrap"><div class="grid cards-4">${services().map((x) => `<div class="card"><div class="icon">${esc(x.icon)}</div>
       <h3>${esc(x.name)}</h3><p style="font-size:.9rem">${esc(x.blurb)}</p>
-      <div class="price-from">From</div><div class="price">${money(x.from)}</div></div>`).join('')}</div></div></section>
+      <a class="linkish" href="#/quote?service=${encodeURIComponent(x.name)}">Get a quote →</a></div>`).join('')}</div></div></section>
     <section class="band alt"><div class="wrap">
-      <div class="row between" style="margin-bottom:24px"><h2>Selected work</h2><a class="linkish" href="#/services">See what we do →</a></div>
-      <div class="grid cards-3">${works().slice(0, 6).map(workCard).join('')}</div></div></section>
+      <div class="row between" style="margin-bottom:24px"><h2>Selected work</h2><a class="linkish" href="#/work">View all work →</a></div>
+      <div class="grid cards-3">${works().slice(0, 3).map(workCard).join('')}</div></div></section>
     <section class="band"><div class="wrap grid cards-2" style="align-items:center">
       <div class="photo-frame wide"><img class="photo" loading="lazy" src="${esc(s.aboutImage)}" alt="The Shai Studios team at work" /></div>
       <div><div class="eyebrow">How we work</div><h2 style="margin:12px 0 6px">A simple, four-step partnership.</h2>
@@ -402,7 +427,7 @@
     </div></section>
     <section class="band alt"><div class="wrap"><div class="cta" style="background-image:linear-gradient(rgba(19,45,35,.84),rgba(19,45,35,.84)),url('${esc(s.ctaImage)}');background-size:cover;background-position:center">
       <div><h2>Let's build forward.</h2><p style="color:#c6d7cc;margin:6px 0 0">Brand. Content. Growth. Digital.</p></div>
-      <a class="btn light" href="#/onboarding">Start your project →</a></div></div></section>`);
+      <a class="btn light" href="#/quote">Get a quote →</a></div></div></section>`);
   });
 
   route('/services', () => page(`
@@ -414,36 +439,96 @@
         <div class="service-photo"><img class="photo" loading="lazy" src="${esc(x.image || PHOTOS.brand)}" alt="${esc(x.name)}" /></div>
         <div class="icon">${esc(x.icon)}</div><h3>${esc(x.name)}</h3><p style="font-size:.9rem">${esc(x.blurb)}</p>
         <ul class="checks">${x.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
-        <div class="row between"><div><div class="price-from">Starting from</div><div class="price">${money(x.from)}</div></div>
-        <a class="btn sm ghost" href="#/contact">→</a></div></div>`).join('')}</div>
+        <a class="btn block" href="#/quote?service=${encodeURIComponent(x.name)}">Get a quote →</a></div>`).join('')}</div>
       <div class="grid cards-2" style="margin-top:56px;align-items:center">
         <div><div class="eyebrow">Our process</div><h2 style="margin:12px 0 6px">From first call to measurable results.</h2>
           <ol class="steps">${PROCESS.map((p) => `<li><b>${esc(p[0])}</b><span>${esc(p[1])}</span></li>`).join('')}</ol></div>
         <div class="photo-frame wide"><img class="photo" loading="lazy" src="${esc(PHOTOS.cta)}" alt="Strategy session" /></div>
       </div>
-      <div class="eyebrow" style="margin-top:64px">Pricing</div>
-      <h2 style="margin:12px 0 6px">Marketing support for every stage.</h2>
-      <p>Clear packages. Real value. No hidden fees. All prices exclude VAT.</p>
-      <div class="grid cards-3" style="margin-top:32px">${plans().map((p) => `<div class="card pad-lg plan ${p.featured ? 'featured' : ''}">
-        ${p.featured ? '<span class="badge-top">Most popular</span>' : ''}
-        <h3>${esc(p.name)}</h3><p style="font-size:.88rem">${esc(p.blurb)}</p>
-        <div class="price" style="font-size:2.2rem;margin:10px 0 0">${money(p.price)}</div>
-        <div class="muted" style="font-size:.8rem">per month</div>
-        <ul class="checks">${p.items.map((i) => `<li>${esc(i)}</li>`).join('')}</ul>
-        <a class="btn ${p.featured ? '' : 'ghost'} block" href="#/onboarding?plan=${encodeURIComponent(p.name)}">Get started</a></div>`).join('')}</div>
-      <div class="card row between" style="margin-top:24px;flex-wrap:wrap;gap:14px">
-        <div><h3>Need something custom?</h3><p style="margin:2px 0 0;font-size:.9rem">We build bespoke solutions for larger organisations.</p></div>
-        <a class="btn ghost" href="#/contact">Request a custom quotation</a></div>
+      <div class="quote-band"><div><h2>Every business is different. So is every quote.</h2>
+        <p>Tell us what you need and we'll send a tailored proposal within two business days — no packages, no guesswork.</p></div>
+        <a class="btn" href="#/quote">Get a quote →</a></div>
       <h2 style="margin:56px 0 8px">Frequently asked</h2>
       <div class="grid cards-2" style="margin-top:18px">${FAQ.map((f) => `<details class="card faq"><summary>${esc(f[0])}</summary><p style="font-size:.9rem">${esc(f[1])}</p></details>`).join('')}</div>
       </div></section>`));
+
+  route('/work', () => page(`
+    <section class="band"><div class="wrap"><div class="eyebrow">Our work</div>
+      <div class="grid cards-2" style="align-items:start;margin-top:12px">
+        <h2>Real brands.<br/>Real progress.</h2>
+        <p style="padding-top:10px">Thoughtful strategy, powerful execution and measurable results.</p></div>
+      <div class="tabs" id="workTabs">${['All', 'Brand', 'Content', 'Growth', 'Digital'].map((t, i) => `<button class="tab ${i === 0 ? 'on' : ''}" data-filter="${t}">${t}</button>`).join('')}</div>
+      <div class="grid cards-3" id="workGrid">${works().map(workCard).join('')}</div>
+      <div class="cta" style="margin-top:48px"><div><h2>Your brand could be next.</h2><p style="margin:6px 0 0">Tell us where you want to be in twelve months.</p></div>
+        <a class="btn light" href="#/quote">Get a quote →</a></div>
+    </div></section>`));
+
+  /* ---------------- store ---------------- */
+  const CART_KEY = 'shai-cart';
+  const products = () => db.content.products.filter((p) => p.published).slice().sort((a, b) => a.order - b.order);
+  const getCart = () => { try { return JSON.parse(localStorage.getItem(CART_KEY)) || []; } catch (e) { return []; } };
+  const setCart = (c) => { try { localStorage.setItem(CART_KEY, JSON.stringify(c)); } catch (e) {} };
+  const cartCount = () => getCart().reduce((n, x) => n + x.qty, 0);
+  const cartLines = () => getCart().map((x) => ({ ...x, p: db.content.products.find((p) => p.id === x.id) })).filter((x) => x.p);
+  const cartTotal = () => cartLines().reduce((t, x) => t + x.p.price * x.qty, 0);
+  let storeFilter = 'All';
+  let storeQuery = '';
+  const productCard = (p) => `<article class="card product-card">
+      <div class="photo-frame tile">${p.badge ? `<span class="badge-corner">${esc(p.badge)}</span>` : ''}<img class="photo" loading="lazy" src="${esc(p.image)}" alt="${esc(p.name)}" /></div>
+      <div class="body"><div class="muted" style="font-size:.75rem;text-transform:uppercase;letter-spacing:.12em">${esc(p.category)}</div>
+        <h3>${esc(p.name)}</h3><p style="font-size:.86rem">${esc(p.blurb)}</p>
+        <div class="row between" style="margin-top:12px"><div class="price">${money(p.price)}</div>
+        <button class="btn sm" data-add-cart="${p.id}">Add to cart</button></div></div></article>`;
+
+  route('/store', () => {
+    const cats = ['All'].concat([...new Set(products().map((p) => p.category))]);
+    const list = products().filter((p) => (storeFilter === 'All' || p.category === storeFilter) &&
+      (!storeQuery || (p.name + ' ' + p.blurb).toLowerCase().includes(storeQuery.toLowerCase())));
+    return page(`
+    <section class="band"><div class="wrap"><div class="eyebrow">Store</div>
+      <div class="grid cards-2" style="align-items:start;margin-top:12px">
+        <h2>Digital products<br/>for growing brands.</h2>
+        <p style="padding-top:10px">The templates and tools we use with clients — instant download, yours to keep.</p></div>
+      <div class="row between store-bar">
+        <div class="tabs" style="margin:0">${cats.map((c) => `<button class="tab ${c === storeFilter ? 'on' : ''}" data-store-filter="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+        <input id="storeSearch" class="store-search" placeholder="Search products..." value="${esc(storeQuery)}" />
+      </div>
+      <div class="grid cards-3" style="margin-top:22px">${list.map(productCard).join('') || '<div class="card empty">No products match.</div>'}</div>
+    </div></section>`);
+  });
+
+  route('/cart', () => {
+    const lines = cartLines(); const total = cartTotal();
+    return page(`
+    <section class="band"><div class="wrap" style="max-width:980px">
+      <nav class="crumbs" style="margin-bottom:14px"><a href="#/store">Store</a><span class="sep">/</span><span aria-current="page">Cart</span></nav>
+      <h2 style="margin-bottom:22px">Your cart</h2>
+      ${lines.length ? `<div class="grid cart-grid">
+        <div class="card" style="padding:8px 22px">${lines.map((x) => `<div class="cart-line">
+          <img src="${esc(x.p.image)}" alt="" /><div style="flex:1;min-width:0"><b>${esc(x.p.name)}</b><div class="muted" style="font-size:.8rem">${esc(x.p.category)} · digital download</div></div>
+          <div class="qty"><button data-cart-qty="${x.id}:-1" aria-label="Decrease">−</button><span>${x.qty}</span><button data-cart-qty="${x.id}:1" aria-label="Increase">+</button></div>
+          <div class="line-total">${money(x.p.price * x.qty)}</div></div>`).join('')}</div>
+        <form class="card pad-lg" id="checkoutForm"><h3>Checkout</h3>
+          <div class="totals" style="max-width:none;margin:14px 0">
+            <div><span class="muted">Items</span><span>${cartCount()}</span></div>
+            <div class="grand"><span>Total</span><span>${money(total)}</span></div>
+            <div class="muted" style="font-size:.75rem">Prices include 15% VAT.</div></div>
+          <div class="field"><label for="coName">Full name</label><input id="coName" required /></div>
+          <div class="field"><label for="coEmail">Email for delivery</label><input id="coEmail" type="email" required /></div>
+          <button class="btn block" type="submit">Place order →</button>
+          <p class="muted" style="font-size:.75rem;margin-top:10px">We email a secure payment link and your downloads within one business hour.</p>
+        </form></div>`
+      : `<div class="card empty"><p>Your cart is empty.</p><a class="btn" href="#/store">Browse the store →</a></div>`}
+    </div></section>`);
+  });
 
   route('/about', () => page(`
     <section class="band"><div class="wrap"><div class="eyebrow">About ${esc(db.settings.agency)}</div>
       <div class="hero-grid" style="padding-top:18px">
         <div><h2>${esc(db.content.site.aboutTitle)}</h2><p>${esc(db.content.site.aboutBody)}</p>
           <p style="font-family:var(--serif);font-size:1.4rem;color:var(--ink);margin-top:26px">${esc(db.settings.owner)}</p>
-          <div class="muted" style="font-size:.85rem">Founder & Agency Owner</div></div>
+          <div class="muted" style="font-size:.85rem">Founder & Agency Owner</div>
+          <a class="btn" style="margin-top:22px" href="#/about">Our story →</a></div>
         <div class="photo-frame hero"><img class="photo" src="${esc(db.content.site.aboutImage)}" alt="Inside Shai Studios" />
           <div class="quote">People.<br/>Purpose.<br/>Progress.</div></div></div>
       <div class="grid cards-3" style="margin-top:44px">
@@ -466,7 +551,7 @@
             <div class="row" style="gap:10px"><span class="icon" style="margin:0">✉</span><div><div style="font-size:.8rem;font-weight:500">Email us</div><div class="muted" style="font-size:.88rem">${esc(db.settings.email)}</div></div></div>
             <div class="row" style="gap:10px;margin-top:14px"><span class="icon" style="margin:0">☏</span><div><div style="font-size:.8rem;font-weight:500">WhatsApp us</div><div class="muted" style="font-size:.88rem">${esc(db.settings.phone)}</div></div></div>
             <div class="row" style="gap:10px;margin-top:14px"><span class="icon" style="margin:0">⌖</span><div><div style="font-size:.8rem;font-weight:500">Based in</div><div class="muted" style="font-size:.88rem">${esc(db.settings.address)}</div></div></div>
-            <a class="btn block" style="margin-top:18px" href="#/onboarding">Or start the 3-minute onboarding →</a>
+            <a class="btn block" style="margin-top:18px" href="#/quote">Need a proposal? Get a quote →</a>
           </div></div>
         <form class="card pad-lg" id="enqForm">
           <div class="field-row"><div class="field"><label for="eName">Your name</label><input id="eName" required /></div>
@@ -547,7 +632,7 @@
       <div class="prose"><p class="lead-para">${esc(p.excerpt)}</p>${postBody(p)}</div>
       <div class="cta" style="margin-top:44px"><div><h2>Want this done for you?</h2>
         <p style="color:#c6d7cc;margin:6px 0 0">Tell us about your business in three minutes.</p></div>
-        <a class="btn light" href="#/onboarding">Start your project →</a></div>
+        <a class="btn light" href="#/quote">Get a quote →</a></div>
     </div></article>
     <section class="band alt"><div class="wrap"><h2 style="margin-bottom:22px">More reading</h2>
       <div class="grid cards-3">${more.map((x) => `<a class="card work-card" href="#/blog/${esc(slugOf(x))}" style="display:block">
@@ -558,15 +643,16 @@
 
   /* ---------------- client onboarding wizard ---------------- */
   const WIZ_KEY = 'shai-onboarding-draft';
-  const WIZ_STEPS = ['About you', 'Your business', 'Goals', 'Budget & timeline', 'Your account', 'Review'];
+  const WIZ_STEPS = ['About you', 'Your business', 'What you need', 'Budget & timeline', 'Your account', 'Review'];
   const GOALS = ['More qualified leads', 'Brand awareness', 'Online sales', 'Social media growth', 'A new website', 'Better reporting'];
   let wiz = null;
   function loadWiz() {
-    if (wiz) return wiz;
-    try { wiz = JSON.parse(localStorage.getItem(WIZ_KEY)); } catch (e) { wiz = null; }
+    if (!wiz) { try { wiz = JSON.parse(localStorage.getItem(WIZ_KEY)); } catch (e) { wiz = null; } }
     if (!wiz || !wiz.data) wiz = { step: 0, data: { name: '', email: '', phone: '', jobTitle: '', business: '', industry: '', website: '', size: '', location: '', services: [], goals: [], plan: '', budget: '', start: '', brief: '', password: '', terms: false } };
     const q = (location.hash.split('?')[1] || '').match(/plan=([^&]+)/);
     if (q && !wiz.data.plan) wiz.data.plan = decodeURIComponent(q[1]);
+    const sv = (location.hash.split('?')[1] || '').match(/service=([^&]+)/);
+    if (sv) { const v = decodeURIComponent(sv[1]); if (wiz.data.services.indexOf(v) < 0) { wiz.data.services.push(v); saveWiz(); } }
     return wiz;
   }
   const saveWiz = () => { try { localStorage.setItem(WIZ_KEY, JSON.stringify(wiz)); } catch (e) {} };
@@ -588,7 +674,7 @@
   }
   const chips = (name, opts, chosen) => `<div class="chips">${opts.map((o) => `<button type="button" class="chip ${chosen.indexOf(o) > -1 ? 'on' : ''}" data-chip="${name}:${esc(o)}">${esc(o)}</button>`).join('')}</div>`;
 
-  route('/onboarding', () => {
+  route('/quote', () => {
     loadWiz();
     const d = wiz.data; const step = wiz.step;
     const errs = wiz.showErrors ? wizErrors(step) : [];
@@ -605,24 +691,24 @@
     else if (step === 2) body = `<h2>What do you need help with?</h2><p>Pick everything that applies — you can change this later.</p>
       <label>Services</label>${chips('services', db.content.services.map((x) => x.name), d.services)}
       <label style="margin-top:22px">Your goals for the next 12 months</label>${chips('goals', GOALS, d.goals)}
-      <div style="margin-top:22px">${select('plan', 'Package you are considering', plans().map((p) => p.name + ' — ' + money(p.price) + '/mo').concat(['Not sure yet']))}</div>`;
+`;
     else if (step === 3) body = `<h2>Budget and timing.</h2><p>An honest range helps us recommend something that actually fits.</p>
       <div class="field-row">${select('budget', 'Monthly budget', ['Under R5 000', 'R5 000 – R10 000', 'R10 000 – R20 000', 'R20 000+'])}
       ${select('start', 'When would you like to start?', ['As soon as possible', 'Within a month', 'This quarter', 'Just exploring'])}</div>
       <div class="field"><label for="w_brief">Anything else we should know?</label>
         <textarea id="w_brief" data-wiz="brief" rows="5" placeholder="Your audience, what you have tried before, competitors you admire...">${esc(d.brief)}</textarea></div>`;
-    else if (step === 4) body = `<h2>Create your client portal.</h2><p>You will use this to track projects, files and invoices — and it is ready the moment you submit.</p>
+    else if (step === 4) body = `<h2>Where should we send your quote?</h2><p>Your proposal lands in a private client portal — create your login now and it is ready the moment we reply.</p>
       <div class="field"><label>Your sign-in email</label><input value="${esc(d.email)}" disabled /></div>
       <div class="field"><label for="w_password">Choose a password</label><input id="w_password" data-wiz="password" type="password" value="${esc(d.password)}" placeholder="At least 8 characters" /></div>
       <label class="row check-row" style="gap:10px;font-weight:400"><input type="checkbox" id="w_terms" data-wiz="terms" ${d.terms ? 'checked' : ''} style="width:auto" />
         <span style="font-size:.88rem">I agree to be contacted about this enquiry and accept the terms of service.</span></label>`;
     else {
       const line = (l, v) => `<div class="row between review-line"><span class="muted">${l}</span><span>${esc(v || '—')}</span></div>`;
-      body = `<h2>One last look.</h2><p>Check the details, then submit — we will be in touch within one business day.</p>
+      body = `<h2>One last look.</h2><p>Check the details, then request your quote — a tailored proposal follows within two business days.</p>
         <div class="card" style="margin-top:18px">
           ${line('Name', d.name)}${line('Email', d.email)}${line('Phone', d.phone)}${line('Business', d.business)}
           ${line('Industry', d.industry)}${line('Team size', d.size)}${line('Website', d.website)}${line('Location', d.location)}
-          ${line('Services', d.services.join(', '))}${line('Goals', d.goals.join(', '))}${line('Package', d.plan)}
+          ${line('Services', d.services.join(', '))}${line('Goals', d.goals.join(', '))}
           ${line('Budget', d.budget)}${line('Timing', d.start)}${line('Brief', d.brief)}</div>`;
     }
     const pct = Math.round((step / (WIZ_STEPS.length - 1)) * 100);
@@ -630,7 +716,7 @@
     <section class="band wizard-band"><div class="wrap wizard">
       <div class="wizard-head">
         <div class="row between" style="flex-wrap:wrap;gap:10px">
-          <div><div class="eyebrow">Client onboarding</div><h1 style="font-size:clamp(1.8rem,3.5vw,2.6rem);margin-top:8px">Let's build forward.</h1></div>
+          <div><div class="eyebrow">Get a quote</div><h1 style="font-size:clamp(1.8rem,3.5vw,2.6rem);margin-top:8px">Tell us what you need.</h1></div>
           <div class="muted" style="font-size:.85rem">Step ${step + 1} of ${WIZ_STEPS.length} · ${esc(WIZ_STEPS[step])}</div>
         </div>
         <div class="wizard-steps">${WIZ_STEPS.map((l, i) => `<div class="wstep ${i === step ? 'on' : ''} ${i < step ? 'done' : ''}"><span class="dot">${i < step ? '✓' : i + 1}</span><span class="lbl">${esc(l)}</span></div>`).join('')}</div>
@@ -644,7 +730,7 @@
           <div class="row" style="gap:10px">
             <span class="muted saved-note">Progress saved on this device</span>
             ${step === WIZ_STEPS.length - 1
-              ? '<button type="submit" class="btn" data-wiz-submit>Submit & open my portal →</button>'
+              ? '<button type="submit" class="btn" data-wiz-submit>Request my quote →</button>'
               : '<button type="submit" class="btn" data-wiz-next>Continue →</button>'}
           </div></div>
       </form>
@@ -660,7 +746,7 @@
     db.clients.unshift(c);
     const u = { id: uid('u'), name: d.name, email: d.email, role: 'client', status: 'Active', password: d.password, clientId: c.id, createdAt: Date.now() };
     db.users.unshift(u);
-    db.projects.unshift({ id: uid('p'), name: 'Onboarding & discovery', clientId: c.id, type: 'Strategy', owner: db.settings.owner,
+    db.projects.unshift({ id: uid('p'), name: 'Quote & discovery', clientId: c.id, type: 'Strategy', owner: db.settings.owner,
       deadline: daysFromNow(14), progress: 10, status: 'Planning', createdAt: Date.now() });
     db.enquiries.unshift({ id: uid('e'), name: d.name, email: d.email, type: d.services.join(', ') || 'Not sure yet',
       budget: d.budget, message: d.brief, status: 'Qualified', at: Date.now() });
@@ -670,7 +756,7 @@
     log('New client ' + c.name + ' completed onboarding');
     localStorage.removeItem(WIZ_KEY); wiz = null;
     save(); signIn(u);
-    toast('Welcome to ' + db.settings.agency + ', ' + d.name.split(' ')[0] + '!');
+    toast('Quote requested — thanks, ' + d.name.split(' ')[0] + '!');
   }
 
   /* ---------------- sign in ---------------- */
@@ -703,6 +789,7 @@
     ['/app/projects', '▤', 'Projects', 'projects'],
     ['/app/invoices', '❐', 'Invoices', 'invoices'],
     ['/app/enquiries', '✉', 'Enquiries', 'enquiries'],
+    ['/app/orders', '🛒', 'Store orders', 'orders'],
     ['/app/content', '✎', 'Site content', 'content'],
     ['/app/users', '⚇', 'Users & roles', 'users'],
     ['/app/audit', '⟲', 'Audit log', 'audit'],
@@ -1018,6 +1105,12 @@
           <td><span class="pill">${esc(x.category)}</span></td><td>${esc(x.author)}</td><td>${fmtDate(x.date)}</td>
           <td>${x.published ? '<span class="pill paid">Live</span>' : '<span class="pill draft">Draft</span>'}</td>
           <td class="right">${rowActions('post', x.id)}</td></tr>`).join('')}</tbody></table></div>`;
+    } else if (contentTab === 'products') {
+      body = `<div class="table-card"><table><thead><tr><th>Product</th><th>Category</th><th>Price</th><th>Badge</th><th>Status</th><th class="right">Actions</th></tr></thead><tbody>
+        ${db.content.products.slice().sort((a, b) => a.order - b.order).map((x) => `<tr><td><b>${esc(x.name)}</b><div class="muted" style="font-size:.78rem">${esc(x.blurb)}</div></td>
+          <td><span class="pill">${esc(x.category)}</span></td><td>${money(x.price)}</td><td>${esc(x.badge || '—')}</td>
+          <td>${x.published ? '<span class="pill paid">Live</span>' : '<span class="pill draft">Hidden</span>'}</td>
+          <td class="right">${rowActions('product', x.id)}</td></tr>`).join('')}</tbody></table></div>`;
     } else if (contentTab === 'plans') {
       body = `<div class="table-card"><table><thead><tr><th>Order</th><th>Plan</th><th>Price</th><th>Features</th><th>Featured</th><th class="right">Actions</th></tr></thead><tbody>
         ${plans().map((x) => `<tr><td>${x.order}</td><td><b>${esc(x.name)}</b><div class="muted" style="font-size:.78rem">${esc(x.blurb)}</div></td><td>${money(x.price)}</td>
@@ -1031,12 +1124,29 @@
         ${f('heroImage', 'Hero photo URL')}${f('aboutImage', 'About photo URL')}${f('ctaImage', 'CTA banner photo URL')}
         ${can('content', 'edit') ? '<button class="btn" data-save-site>Save site copy</button>' : ''}</div>`;
     }
-    const newBtn = { services: 'service', work: 'work', plans: 'plan', posts: 'post' }[contentTab];
-    return shell([['#/app/content', 'Site content'], ['#', { services: 'Services', posts: 'Blog posts', work: 'Case studies', plans: 'Pricing plans', copy: 'Page copy' }[contentTab]]], `
+    if (contentTab === 'plans') contentTab = 'services';
+    const newBtn = { services: 'service', work: 'work', posts: 'post', products: 'product' }[contentTab];
+    return shell([['#/app/content', 'Site content'], ['#', { services: 'Services', posts: 'Blog posts', work: 'Case studies', products: 'Store products', copy: 'Page copy' }[contentTab]]], `
       <div class="page-head"><div><h1 style="font-size:2.2rem">Site content</h1><p>Everything on the public website is editable here — changes go live instantly.</p></div>
         ${newBtn && can('content', 'create') ? `<button class="btn" data-new="${newBtn}">＋ Add ${SCHEMAS[newBtn].title.toLowerCase()}</button>` : ''}</div>
-      <div class="tabbar">${tabBtn('services', 'Services')}${tabBtn('posts', 'Blog posts')}${tabBtn('work', 'Case studies')}${tabBtn('plans', 'Pricing plans')}${tabBtn('copy', 'Page copy')}</div>
+      <div class="tabbar">${tabBtn('services', 'Services')}${tabBtn('posts', 'Blog posts')}${tabBtn('work', 'Case studies')}${tabBtn('products', 'Store products')}${tabBtn('copy', 'Page copy')}</div>
       ${body}`);
+  });
+
+  /* ---------------- store orders ---------------- */
+  route('/app/orders', () => {
+    if (!can('orders', 'view')) return shell([], '<div class="card empty">No access.</div>');
+    const rev = db.orders.filter((o) => o.status === 'Paid' || o.status === 'Delivered').reduce((t, o) => t + o.total, 0);
+    const rows = db.orders.map((o) => `<tr><td><b>${esc(o.number)}</b><div class="muted" style="font-size:.78rem">${fmtStamp(o.at)}</div></td>
+      <td>${esc(o.name)}<div class="muted" style="font-size:.78rem">${esc(o.email)}</div></td>
+      <td style="font-size:.84rem">${o.items.map((i) => esc(i.name) + ' × ' + i.qty).join('<br/>')}</td><td>${money(o.total)}</td>
+      <td>${can('orders', 'edit') ? `<select data-order-status="${o.id}" style="padding:6px 8px;font-size:.8rem;width:auto">${['Pending', 'Paid', 'Delivered', 'Refunded'].map((st) => `<option ${st === o.status ? 'selected' : ''}>${st}</option>`).join('')}</select>` : `<span class="pill">${esc(o.status)}</span>`}</td>
+      <td class="right">${can('orders', 'delete') ? `<button class="btn sm ghost danger-text" data-del-order="${o.id}">Delete</button>` : ''}</td></tr>`).join('');
+    return shell([['#/app/orders', 'Store orders']], `
+      <div class="page-head"><div><h1 style="font-size:2.2rem">Store orders</h1><p>${db.orders.length} orders · ${money(rev)} paid revenue.</p></div>
+        ${can('content', 'edit') ? '<button class="btn ghost" data-goto="#/app/content" data-ctab-go="products">Manage products</button>' : ''}</div>
+      <div class="table-card"><table><thead><tr><th>Order</th><th>Customer</th><th>Items</th><th>Total</th><th>Status</th><th></th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="6" class="empty">No orders yet — they appear here the moment someone checks out in the store.</td></tr>'}</tbody></table></div>`);
   });
 
   /* ---------------- users & roles ---------------- */
@@ -1113,11 +1223,11 @@
       <p>Here's the latest on your projects with ${esc(db.settings.agency)}.</p>
       ${c.status === 'Onboarding' ? `<div class="card pad-lg" style="margin-top:20px;border-color:var(--green-600)">
         <span class="pill sent">Onboarding</span>
-        <h3 style="margin:10px 0 4px">You're in. Here's what happens next.</h3>
+        <h3 style="margin:10px 0 4px">Quote requested. Here's what happens next.</h3>
         <ol class="steps" style="margin-top:8px">
           <li><b>1 · We review your brief</b><span>Within one business day, by ${esc(db.settings.owner)}.</span></li>
           <li><b>2 · Discovery call</b><span>A 30-minute call to confirm scope, budget and timing.</span></li>
-          <li><b>3 · Proposal & first invoice</b><span>Both land right here in your portal.</span></li>
+          <li><b>3 · Your tailored quote</b><span>Your proposal lands right here in your portal.</span></li>
         </ol>
         <a class="btn block" style="margin-top:14px" href="#/contact">Ask us a question</a></div>` : ''}
       ${open ? `<div class="card pad-lg" style="margin-top:20px">
@@ -1254,6 +1364,29 @@
       });
     }
 
+    const ss = el('storeSearch');
+    if (ss) ss.addEventListener('input', () => {
+      storeQuery = ss.value; const pos = ss.selectionStart; render();
+      const n = el('storeSearch'); if (n) { n.focus(); n.setSelectionRange(pos, pos); }
+    });
+    const co = el('checkoutForm');
+    if (co) co.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const lines = cartLines(); if (!lines.length) return;
+      const n = db.orders.reduce((m, o) => Math.max(m, parseInt(String(o.number).replace(/\D/g, ''), 10) || 0), 1000) + 1;
+      const o = { id: uid('o'), number: 'SH-' + n, name: el('coName').value.trim(), email: el('coEmail').value.trim(),
+        items: lines.map((x) => ({ id: x.id, name: x.p.name, price: x.p.price, qty: x.qty })), total: cartTotal(), status: 'Pending', at: Date.now() };
+      db.orders.unshift(o);
+      db.audit.unshift({ id: uid('a'), at: Date.now(), who: o.name, role: 'client', action: 'created', entity: 'Order', label: o.number, detail: money(o.total) + ' via store' });
+      log('Store order ' + o.number + ' from ' + o.name); save(); setCart([]);
+      el('app').innerHTML = page(`<section class="band"><div class="wrap" style="max-width:640px"><div class="card pad-lg center">
+        <div class="icon" style="margin:0 auto 14px">✓</div><h2>Order ${esc(o.number)} received.</h2>
+        <p>Thanks, ${esc(o.name.split(' ')[0])} — a payment link and your downloads are on their way to <b>${esc(o.email)}</b>.</p>
+        <div class="row" style="justify-content:center;margin-top:18px;flex-wrap:wrap"><a class="btn" href="#/store">Keep browsing</a><a class="btn ghost" href="#/quote">Need more than a template? Get a quote</a></div>
+      </div></div></section>`);
+      window.scrollTo(0, 0);
+    });
+
     const dc = el('dClient');
     if (dc) dc.addEventListener('change', () => { syncDraft(); render(); });
     ['dNumber', 'dIssue', 'dDue', 'dTerms', 'dNotes', 'dStatus'].forEach((k) => { const n = el(k); if (n) n.addEventListener('change', syncDraft); });
@@ -1297,6 +1430,32 @@
     if (t.closest('[data-wiz-back]')) { if (wiz.step > 0) { wiz.step--; wiz.showErrors = false; saveWiz(); render(); } return; }
 
     if (t.classList.contains('scrim')) { closeDrawers(); return; }
+    const addc = hit('data-add-cart');
+    if (addc) {
+      const c = getCart(); const x = c.find((i) => i.id === addc);
+      if (x) x.qty++; else c.push({ id: addc, qty: 1 });
+      setCart(c); const p = db.content.products.find((i) => i.id === addc);
+      toast((p ? p.name : 'Item') + ' added to cart.');
+      $$('.cart-count').forEach((n) => (n.textContent = cartCount())); return;
+    }
+    const cq = hit('data-cart-qty');
+    if (cq) {
+      const [pid, d] = cq.split(':'); let c = getCart(); const x = c.find((i) => i.id === pid);
+      if (x) { x.qty += Number(d); if (x.qty <= 0) c = c.filter((i) => i.id !== pid); }
+      setCart(c); render(); return;
+    }
+    const sf = hit('data-store-filter');
+    if (sf) { storeFilter = sf; render(); return; }
+    const delo = hit('data-del-order');
+    if (delo) {
+      if (!can('orders', 'delete')) return deny();
+      const o = db.orders.find((x) => x.id === delo);
+      if (!confirm('Delete order ' + o.number + '?')) return;
+      db.orders = db.orders.filter((x) => x.id !== delo); audit('deleted', 'Order', o.number); save(); render(); return;
+    }
+    const ctg = hit('data-ctab-go');
+    if (ctg) contentTab = ctg;
+
     const toggle = hit('data-toggle');
     if (toggle) {
       const n = el(toggle); const opening = !n.classList.contains('open');
@@ -1439,6 +1598,12 @@
   });
 
   document.addEventListener('change', (e) => {
+    const os = e.target.closest('[data-order-status]');
+    if (os) {
+      if (!can('orders', 'edit')) { deny(); render(); return; }
+      const o = db.orders.find((x) => x.id === os.getAttribute('data-order-status'));
+      o.status = os.value; audit('updated', 'Order', o.number, 'status → ' + o.status); save(); render(); return;
+    }
     const sel = e.target.closest('[data-proj-status]');
     if (sel) {
       if (!can('projects', 'edit')) { deny(); render(); return; }
