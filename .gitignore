@@ -3,3 +3,8 @@ node_modules/
 .DS_Store
 
 .vercel
+
+# supabase
+.env
+.env.local
+supabase/.temp/
