@@ -363,7 +363,7 @@
   window.addEventListener('hashchange', render);
 
   /* ---------------- public site ---------------- */
-  const NAV = [['/', 'Home'], ['/services', 'Services'], ['/work', 'Work'], ['/about', 'About'], ['/store', 'Store'], ['/contact', 'Contact']];
+  const NAV = [['/', 'Home'], ['/about', 'About'], ['/work', 'Work'], ['/services', 'Services'], ['/blog', 'Blog'], ['/store', 'Store'], ['/contact', 'Contact']];
   const services = () => db.content.services.slice().sort((a, b) => a.order - b.order);
   const plans = () => db.content.plans.slice().sort((a, b) => a.order - b.order);
   const works = () => db.content.work.filter((w) => w.published);
@@ -372,7 +372,7 @@
     return `<header class="nav"><div class="wrap">
       <a href="#/" class="brand">${esc(db.settings.agency)}<small>Digital Marketing Agency</small></a>
       <nav class="navlinks" id="pubnav">${NAV.map(([h, l]) => `<a href="#${h}" class="${current.path === h || (h === '/blog' && current.path === '/blog/:slug') ? 'on' : ''}">${l}</a>`).join('')}
-        <a href="#/blog">Blog</a><a href="#/login">Sign in</a>
+        <a href="#/login">Sign in</a>
         <a class="btn block nav-cta-mobile" href="#/quote">Get a quote →</a></nav>
       <div class="row"><a class="cart-link" href="#/cart" aria-label="Cart">Cart<span class="cart-count">${cartCount()}</span></a>
         <a class="btn nav-cta" href="#/quote">Get a quote →</a>
@@ -383,7 +383,7 @@
     return `<footer class="site"><div class="wrap">
       <div><div class="brand" style="color:#fff">${esc(db.settings.agency)}</div>
       <p style="color:#9fb8ab;font-size:.85rem;margin:6px 0 0">Independent digital marketing agency · Cape Town</p></div>
-      <nav class="row" style="flex-wrap:wrap;gap:18px">${NAV.map(([h, l]) => `<a href="#${h}">${l}</a>`).join('')}<a href="#/blog">Blog</a><a href="#/quote">Get a quote</a><a href="#/login">Sign in</a></nav>
+      <nav class="row" style="flex-wrap:wrap;gap:18px">${NAV.map(([h, l]) => `<a href="#${h}">${l}</a>`).join('')}<a href="#/quote">Get a quote</a><a href="#/login">Sign in</a></nav>
       <div style="font-size:.8rem;color:#9fb8ab">${esc(db.content.site.tagline)}</div>
     </div></footer>`;
   }
