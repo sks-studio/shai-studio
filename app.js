@@ -751,6 +751,12 @@
     db.enquiries.unshift({ id: uid('e'), name: d.name, email: d.email, type: d.services.join(', ') || 'Not sure yet',
       budget: d.budget, message: d.brief, status: 'Qualified', at: Date.now() });
     db.onboardings.unshift(Object.assign({ id: uid('o'), clientId: c.id, at: Date.now() }, d, { password: undefined }));
+    if (liveAuth()) {
+      // create a real portal account, then store the quote against it
+      window.SHAI.auth.signUp(d.email, d.password, { name: d.name, business: d.business })
+        .catch((err) => console.warn('[shai] signup', err.message))
+        .finally(() => window.SHAI.submit.quote(d).catch((err) => console.warn('[shai] quote', err.message)));
+    }
     audit('created', 'Client', c.name, 'self-serve onboarding');
     audit('created', 'User', u.name, 'client portal account');
     log('New client ' + c.name + ' completed onboarding');
@@ -760,23 +766,34 @@
   }
 
   /* ---------------- sign in ---------------- */
+  const liveAuth = () => !!(window.SHAI && window.SHAI.enabled);
+
   route('/login', () => `
     <div class="auth">
       <div class="panel"><div class="inner">
         <a href="#/" class="brand">${esc(db.settings.agency)}<small>Agency Workspace</small></a>
         <h1 style="font-size:2.6rem;margin:34px 0 10px">Welcome back.</h1>
         <p style="margin-bottom:22px">Sign in to manage clients, projects, invoices and your team.</p>
+        ${liveAuth() ? `<div class="oauth-row">
+          <button class="btn ghost block" data-oauth="google"><span class="oauth-mark">G</span> Continue with Google</button>
+          <button class="btn ghost block" data-oauth="github"><span class="oauth-mark">GH</span> Continue with GitHub</button>
+        </div>
+        <div class="or-line"><span>or</span></div>` : ''}
         <form id="loginForm">
-          <div class="field"><label for="lEmail">Email address</label><input id="lEmail" type="email" value="admin@shaistudios.co.za" required /></div>
-          <div class="field"><label for="lPass">Password</label><input id="lPass" type="password" value="demo1234" required /></div>
+          <div class="field"><label for="lEmail">Email address</label><input id="lEmail" type="email" value="${liveAuth() ? '' : 'admin@shaistudios.co.za'}" required /></div>
+          <div class="field"><label for="lPass">Password</label><input id="lPass" type="password" value="${liveAuth() ? '' : 'demo1234'}" required /></div>
           <button class="btn block" style="margin-top:16px" type="submit">Sign in →</button>
           <div id="loginErr" class="error"></div>
         </form>
-        <p class="muted" style="font-size:.78rem;margin:20px 0 8px">Or sign in as a demo role — every role sees a different workspace:</p>
+        ${liveAuth() ? `<div class="row" style="gap:10px;margin-top:12px">
+            <button class="btn ghost sm" data-magic>Email me a sign-in link</button>
+            <button class="btn ghost sm" data-reset-pw>Forgot password</button></div>
+          <p class="muted" style="font-size:.76rem;margin-top:18px">Connected to shaistudiodb. New sign-ups become clients; the owners are super admins automatically.</p>`
+        : `<p class="muted" style="font-size:.78rem;margin:20px 0 8px">Demo mode — no database connected yet. Sign in as any role:</p>
         <div class="row" style="flex-wrap:wrap;gap:8px">
           ${db.users.map((u) => `<button class="btn ghost sm" data-demo="${u.id}">${esc(ROLES[u.role].label)}</button>`).join('')}
         </div>
-        <p class="muted" style="font-size:.76rem;margin-top:22px">🔒 Demo password for all accounts: demo1234</p>
+        <p class="muted" style="font-size:.76rem;margin-top:22px">🔒 Demo password for all accounts: demo1234</p>`}
       </div></div>
       <div class="side"><h2>Ideas.<br/>Strategy.<br/>Real progress.</h2>
         <p style="color:#bcd0c4;margin-top:18px;max-width:34ch">The digital marketing partner for ambitious businesses.</p></div>
@@ -1330,12 +1347,20 @@
       e.preventDefault();
       const rec = { id: uid('e'), name: el('eName').value.trim(), email: el('eEmail').value.trim(), type: el('eType').value, budget: el('eBudget').value, message: el('eMsg').value.trim(), status: 'New', at: Date.now() };
       db.enquiries.unshift(rec); log('New client enquiry from ' + rec.name);
+      if (liveAuth()) window.SHAI.submit.enquiry(rec).catch((err) => console.warn('[shai] enquiry not saved remotely', err.message));
       db.audit.unshift({ id: uid('a'), at: Date.now(), who: rec.name, role: 'client', action: 'created', entity: 'Enquiry', label: rec.name, detail: 'via public contact form' });
       save(); enq.reset(); toast('Thanks ' + rec.name.split(' ')[0] + " — we'll be in touch within 1–2 business days.");
     });
 
     const lf = el('loginForm');
-    if (lf) lf.addEventListener('submit', (e) => {
+    if (lf && liveAuth()) lf.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const email = el('lEmail').value.trim().toLowerCase(), pass = el('lPass').value;
+      el('loginErr').textContent = '';
+      try { await window.SHAI.auth.signIn(email, pass); await adoptSupabaseSession(); }
+      catch (err) { el('loginErr').textContent = err.message || 'Could not sign in.'; }
+    });
+    if (lf && !liveAuth()) lf.addEventListener('submit', (e) => {
       e.preventDefault();
       const email = el('lEmail').value.trim().toLowerCase();
       const u = db.users.find((x) => x.email.toLowerCase() === email);
@@ -1377,6 +1402,7 @@
       const o = { id: uid('o'), number: 'SH-' + n, name: el('coName').value.trim(), email: el('coEmail').value.trim(),
         items: lines.map((x) => ({ id: x.id, name: x.p.name, price: x.p.price, qty: x.qty })), total: cartTotal(), status: 'Pending', at: Date.now() };
       db.orders.unshift(o);
+      if (liveAuth()) window.SHAI.submit.order(o).catch((err) => console.warn('[shai] order not saved remotely', err.message));
       db.audit.unshift({ id: uid('a'), at: Date.now(), who: o.name, role: 'client', action: 'created', entity: 'Order', label: o.number, detail: money(o.total) + ' via store' });
       log('Store order ' + o.number + ' from ' + o.name); save(); setCart([]);
       el('app').innerHTML = page(`<section class="band"><div class="wrap" style="max-width:640px"><div class="card pad-lg center">
@@ -1387,10 +1413,66 @@
       window.scrollTo(0, 0);
     });
 
+    if (liveAuth()) {
+      $('[data-oauth]').forEach((b) => b.addEventListener('click', async () => {
+        try { await window.SHAI.auth.oauth(b.dataset.oauth); }
+        catch (err) { el('loginErr').textContent = err.message; }
+      }));
+      const mg = $('[data-magic]');
+      if (mg) mg.addEventListener('click', async () => {
+        const email = el('lEmail').value.trim();
+        if (!email) { el('loginErr').textContent = 'Enter your email address first.'; return; }
+        try { await window.SHAI.auth.magicLink(email); toast('Sign-in link sent to ' + email); }
+        catch (err) { el('loginErr').textContent = err.message; }
+      });
+      const rp = $('[data-reset-pw]');
+      if (rp) rp.addEventListener('click', async () => {
+        const email = el('lEmail').value.trim();
+        if (!email) { el('loginErr').textContent = 'Enter your email address first.'; return; }
+        try { await window.SHAI.auth.resetPassword(email); toast('Password reset link sent.'); }
+        catch (err) { el('loginErr').textContent = err.message; }
+      });
+    }
+
     const dc = el('dClient');
     if (dc) dc.addEventListener('change', () => { syncDraft(); render(); });
     ['dNumber', 'dIssue', 'dDue', 'dTerms', 'dNotes', 'dStatus'].forEach((k) => { const n = el(k); if (n) n.addEventListener('change', syncDraft); });
     $$('[data-item]').forEach((inp) => inp.addEventListener('change', () => { syncDraft(); render(); }));
+  }
+
+  // turn a Supabase profile row into the session the workspace already understands
+  async function adoptSupabaseSession() {
+    const S = window.SHAI;
+    if (!S || !S.enabled || !S.user) return false;
+    if (!S.profile) { await new Promise((r) => setTimeout(r, 400)); }
+    const p = S.profile || { name: S.user.email, role: 'client', client_id: null };
+    db.session = { uid: S.user.id, name: p.name, role: p.role, email: p.email || S.user.email, clientId: p.client_id || null, live: true };
+    save();
+    go(p.role === 'client' ? '#/portal' : '#/app');
+    render();
+    return true;
+  }
+  window.addEventListener('DOMContentLoaded', () => {
+    if (window.SHAI && window.SHAI.ready) {
+      window.SHAI.ready.then(async () => {
+        if (window.SHAI.enabled) { await syncContentFromDb(); if (window.SHAI.user) await adoptSupabaseSession(); else render(); }
+      });
+    }
+  });
+  document.addEventListener('shai:auth', () => { if (window.SHAI.user) adoptSupabaseSession(); });
+
+  // live site content replaces the seeded demo content when the database is reachable
+  async function syncContentFromDb() {
+    try {
+      const c = await window.SHAI.content();
+      if (!c) return;
+      if (c.services.length) db.content.services = c.services.map((x) => ({ ...x, items: x.items || [] }));
+      if (c.work.length) db.content.work = c.work;
+      if (c.posts.length) db.content.posts = c.posts;
+      if (c.products.length) db.content.products = c.products;
+      if (Object.keys(c.site).length) Object.assign(db.content.site, c.site);
+      render();
+    } catch (e) { console.warn('[shai] content sync failed', e.message); }
   }
 
   function signIn(u) {
@@ -1470,7 +1552,11 @@
     const demo = hit('data-demo');
     if (demo) { const u = db.users.find((x) => x.id === demo); if (u) signIn(u); return; }
 
-    if (t.closest('[data-signout]')) { audit('signed out', 'Session', (db.session || {}).name || ''); db.session = null; save(); toast('Signed out.'); return; }
+    if (t.closest('[data-signout]')) {
+      audit('signed out', 'Session', (db.session || {}).name || '');
+      if (liveAuth()) window.SHAI.auth.signOut();
+      db.session = null; save(); toast('Signed out.'); return;
+    }
 
     const goto = hit('data-goto');
     if (goto) { go(goto); return; }
