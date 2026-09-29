@@ -2,10 +2,10 @@
 
 | | |
 |---|---|
-| Project | **shaistudiodb** (), region eu-central-1, Free plan |
+| Project | **shaistudiodb** (ref szxlbhktvtquindgvvif), region eu-central-1, Free plan |
 | URL | https://szxlbhktvtquindgvvif.supabase.co |
 | Dashboard | https://supabase.com/dashboard/project/szxlbhktvtquindgvvif |
-| Connected | yes — keys are in  |
+| Connected | yes — keys live in config.js |
 
 Steps 1–3 below are **already done**. Step 4 still needs you.
 
