@@ -1414,7 +1414,7 @@
     });
 
     if (liveAuth()) {
-      $('[data-oauth]').forEach((b) => b.addEventListener('click', async () => {
+      $$('[data-oauth]').forEach((b) => b.addEventListener('click', async () => {
         try { await window.SHAI.auth.oauth(b.dataset.oauth); }
         catch (err) { el('loginErr').textContent = err.message; }
       }));

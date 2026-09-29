@@ -1,34 +1,26 @@
-# Connecting shaistudiodb
+# shaistudiodb — live
 
-Everything below is a one-time setup. The site works without it (local demo data),
-and switches to the database the moment `config.js` is filled in.
+| | |
+|---|---|
+| Project | **shaistudiodb** (), region eu-central-1, Free plan |
+| URL | https://szxlbhktvtquindgvvif.supabase.co |
+| Dashboard | https://supabase.com/dashboard/project/szxlbhktvtquindgvvif |
+| Connected | yes — keys are in  |
 
-## 1. Create the project (2 minutes, free)
+Steps 1–3 below are **already done**. Step 4 still needs you.
 
-1. Go to https://supabase.com/dashboard → **New project**
-2. Organisation: `mr-karabonhlamulo's Org`
-3. Name: **shaistudiodb** · Region: **West EU (Ireland)** · Plan: **Free**
-4. Save the database password somewhere safe (Bitwarden) — you will not see it again.
+## Done: tables, security, seed data
 
-Wait for the project to finish provisioning (~2 minutes).
+All 15 tables, row-level security on every one, the invoice VAT view, seed
+content (4 services, 6 case studies, 4 blog posts, 6 products, page copy) and the
+super-admin allowlist are applied. Verified from the browser: the public can read
+published content and submit enquiries, quotes and orders, and cannot read
+clients, invoices, orders, profiles, the audit log or the allowlist.
 
-## 2. Create the tables
+## Done: auth URLs
 
-Dashboard → **SQL Editor** → New query. Paste and run each file in order:
-
-1. `supabase/migrations/0001_init.sql` — tables, row-level security, invoice totals
-2. `supabase/migrations/0002_bootstrap.sql` — super admins, seed content, store products
-
-Both are safe to run more than once.
-
-## 3. Point the site at it
-
-Dashboard → **Project Settings → API**. Copy:
-
-- **Project URL** → `config.js` → `url`
-- **Publishable / anon key** → `config.js` → `key`
-
-Both are safe to commit: the anon key only grants what row-level security allows.
+Site URL , redirects allow that domain
+and .
 
 ## 4. Turn on the sign-in methods
 
